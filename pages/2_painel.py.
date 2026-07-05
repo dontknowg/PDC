@@ -1,19 +1,17 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
+import urllib.parse
 
 st.set_page_config(page_title="Painel | Projeto de Correções", layout="wide")
 
 TABELA = "fila"
 
-
 @st.cache_resource
 def init_connection() -> Client:
     return create_client(st.secrets["supabase"]["url"], st.secrets["supabase"]["key"])
 
-
 supabase = init_connection()
-
 
 def carregar_dados(filtro_status=None) -> pd.DataFrame:
     query = supabase.table(TABELA).select("*")
@@ -26,10 +24,8 @@ def carregar_dados(filtro_status=None) -> pd.DataFrame:
         return pd.DataFrame(response.data)
     return pd.DataFrame(columns=["id", "data_hora", "nome", "contato", "turma", "tema", "status"])
 
-
 def atualizar_status(id_aluno: str, novo_status: str):
     supabase.table(TABELA).update({"status": novo_status}).eq("id", id_aluno).execute()
-
 
 # ---------- AUTENTICAÇÃO ----------
 
@@ -44,7 +40,6 @@ if not st.session_state.get("autenticado"):
             st.error("Senha incorreta.")
     st.stop()
 
-
 # ---------- PAINEL DO CORRETOR ----------
 
 st.title("Painel de Correções")
@@ -52,30 +47,44 @@ st.title("Painel de Correções")
 aba_fila, aba_dados = st.tabs(["Fila de Atendimento", "Base de Dados"])
 
 with aba_fila:
-    fila_espera = carregar_dados("Aguardando")
+    # O fragmento faz a fila atualizar sozinha, sem piscar o resto da tela
+    @st.fragment(run_every=10)
+    def exibir_fila_dinamica():
+        fila_espera = carregar_dados("Aguardando")
 
-    if fila_espera.empty:
-        st.info("Nenhum aluno aguardando no momento.")
-    else:
-        st.dataframe(
-            fila_espera[["data_hora", "nome", "contato", "turma", "tema"]],
-            hide_index=True,
-            use_container_width=True,
-        )
+        if fila_espera.empty:
+            st.info("Nenhum aluno aguardando no momento.")
+        else:
+            st.dataframe(
+                fila_espera[["data_hora", "nome", "contato", "turma", "tema"]],
+                hide_index=True,
+                use_container_width=True,
+            )
 
-        proximo = fila_espera.iloc[0]
-        st.markdown(f"### Chamar agora: **{proximo['nome']}**")
-        st.caption(f"Tema: {proximo['tema']} | Turma: {proximo['turma']} | Contato: {proximo['contato']}")
+            st.divider()
+            proximo = fila_espera.iloc[0]
+            st.markdown(f"### 🎯 Próximo da fila: **{proximo['nome']}**")
+            st.caption(f"Tema: {proximo['tema']} | Turma: {proximo['turma']} | Contato: {proximo['contato']}")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Concluir Atendimento"):
-                atualizar_status(proximo["id"], "Concluído")
-                st.rerun()
-        with col2:
-            if st.button("Aluno Ausente"):
-                atualizar_status(proximo["id"], "Ausente")
-                st.rerun()
+            # Botão Inteligente do WhatsApp
+            numero_limpo = ''.join(filter(str.isdigit, str(proximo['contato'])))
+            mensagem = f"Olá, {proximo['nome']}! É a sua vez no Projeto de Correções. Dirija-se à mesa."
+            link_wa = f"https://wa.me/55{numero_limpo}?text={urllib.parse.quote(mensagem)}"
+            
+            st.link_button("📲 Chamar no WhatsApp", link_wa, type="primary")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Concluir Atendimento", use_container_width=True):
+                    atualizar_status(proximo["id"], "Concluído")
+                    st.rerun()
+            with col2:
+                if st.button("❌ Aluno Ausente", use_container_width=True):
+                    atualizar_status(proximo["id"], "Ausente")
+                    st.rerun()
+
+    # Chama a função fragmentada para rodar
+    exibir_fila_dinamica()
 
     st.divider()
     st.subheader("Ações Recentes")
@@ -97,10 +106,6 @@ with aba_fila:
                 atualizar_status(row["id"], "Aguardando")
                 st.rerun()
 
-    st.divider()
-    if st.button("Atualizar Fila"):
-        st.rerun()
-
 with aba_dados:
     st.subheader("Base de Dados Completa")
     todos_dados = carregar_dados()
@@ -110,4 +115,3 @@ with aba_dados:
         st.download_button("Exportar CSV", data=csv, file_name="metricas_correcoes.csv", mime="text/csv")
     else:
         st.info("Nenhum dado registrado ainda.")
-
