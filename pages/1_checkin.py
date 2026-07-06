@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 from alunos import BASE_ALUNOS
+from temas import TEMAS_POR_LIVRO
 
 st.set_page_config(page_title="Check-in | Projeto de Correções", layout="centered")
 
@@ -77,7 +78,6 @@ st.markdown(
         border: 1px solid var(--bt-border) !important;
         border-radius: 14px !important;
         box-shadow: 0 2px 10px rgba(0,0,0,0.35) !important;
-        /* Aqui não colocamos padding, deixamos o Streamlit calcular o respiro perfeito! */
     }
 
     /* Efeitos de brilho ao clicar */
@@ -216,7 +216,8 @@ def cabecalho_marca():
         <div class="bt-brand">
             <img src="{url_logo}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 14px rgba(255,255,255,0.15);">
             <div>
-                <div class="bt-brandname">PROJETO DE CORREÇÕES</div>
+                <div class="bt-brandname">BATINGA</div>
+                <div class="bt-brandsub">PROJETO DE CORREÇÕES</div>
             </div>
         </div>
         """,
@@ -225,7 +226,7 @@ def cabecalho_marca():
 
 
 # ============================================================
-#  MOTOR — NÃO ALTERADO
+#  MOTOR — LOGICA DA FILA
 # ============================================================
 
 @st.cache_resource
@@ -261,6 +262,10 @@ def buscar_posicao(id_aluno: str) -> int | None:
     return None
 
 
+# ---------- PREPARAÇÃO DOS TEMAS ----------
+# Junta todos os temas de todos os livros em uma única lista plana para o aluno
+TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for tema in temas]
+
 # ---------- TELA DE CHECK-IN ----------
 
 if "meu_id" not in st.session_state:
@@ -269,10 +274,9 @@ if "meu_id" not in st.session_state:
         st.title("Check-in da Fila")
         st.markdown("Preencha seus dados para entrar na fila de correção.")
 
-    # 1. Monta a lista APENAS com os nomes e a opção "Outro" no final
+    # 1. Pesquisa do Aluno
     LISTA_NOMES = list(BASE_ALUNOS.keys()) + ["Outro (Não encontrei meu nome)"]
     
-    # 2. O aluno pesquisa o nome (index=None deixa o campo vazio por padrão)
     nome_selecionado = st.selectbox(
         "Nome completo (Comece a digitar para buscar)", 
         LISTA_NOMES,
@@ -280,7 +284,7 @@ if "meu_id" not in st.session_state:
         placeholder="Selecione ou digite seu nome..."
     )
     
-    # 3. A lógica invisível entra em ação
+    # 2. A lógica invisível do aluno
     if nome_selecionado == "Outro (Não encontrei meu nome)":
         nome = st.text_input("Digite seu nome completo")
         contato = st.text_input("WhatsApp (apenas números com DDD)")
@@ -294,24 +298,20 @@ if "meu_id" not in st.session_state:
             index=None,
             placeholder="Selecione sua turma..."
         )
-    
     elif nome_selecionado is not None:
-        # Se escolheu um nome da lista, puxa os dados do dicionário em silêncio
         nome = nome_selecionado
         dados_aluno = BASE_ALUNOS.get(nome, {})
         contato = dados_aluno.get("contato", "")
         turma = dados_aluno.get("turma", "Não identificada")
-        
     else:
-        # Estado inicial (nada selecionado)
         nome = ""
         contato = ""
         turma = ""
 
-    # 4. Campo de Tema — Sempre visível
-    tema = st.selectbox(
-        "Tema da redação", 
-        ["Eixo Temático 01: Saúde", "Eixo Temático 02: Tecnologia"],
+    # 3. Campo Único de Tema para o Aluno (puxando todos os temas do arquivo novo)
+    tema_selecionado = st.selectbox(
+        "Tema da redação (Comece a digitar para buscar)", 
+        TODOS_TEMAS,
         index=None,
         placeholder="Selecione o tema..."
     )
@@ -319,15 +319,21 @@ if "meu_id" not in st.session_state:
     enviado = st.button("Entrar na Fila", use_container_width=True)
 
     if enviado:
-        if not all([nome, contato, turma, tema]):
+        if not all([nome, contato, turma, tema_selecionado]):
             st.error("Preencha todos os dados antes de continuar.")
         elif aluno_ja_na_fila(contato):
             st.error("Você já está na fila de espera. Aguarde ser chamado.")
         else:
             try:
+                # 4. A mágica invisível: Descobrimos de qual livro é esse tema
+                livro_do_tema = next((livro for livro, temas in TEMAS_POR_LIVRO.items() if tema_selecionado in temas), "Outro")
+                
+                # Montamos o texto perfeito para salvar no seu banco de dados
+                tema_final = f"{livro_do_tema} - {tema_selecionado}"
+                
                 resposta = (
                     supabase.table(TABELA)
-                    .insert({"nome": nome, "contato": contato, "turma": turma, "tema": tema})
+                    .insert({"nome": nome, "contato": contato, "turma": turma, "tema": tema_final})
                     .execute()
                 )
                 st.session_state["meu_id"] = resposta.data[0]["id"]
