@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 from supabase import create_client, Client
 from alunos import BASE_ALUNOS
 from temas import TEMAS_POR_LIVRO
@@ -85,14 +86,12 @@ st.markdown(
         color: var(--bt-text) !important;
     }
 
-    /* Item destacado/selecionado do dropdown (visível no toque) */
     div[data-baseweb="popover"] li:hover,
     div[data-baseweb="popover"] li[aria-selected="true"] {
         background: rgba(176,38,255,0.22) !important;
     }
 
-    /* CORREÇÃO MOBILE: limita a altura da lista para rolar por dentro
-       em vez de estourar o topo da tela (barra de status) no celular */
+    /* CORREÇÃO MOBILE: limita a altura da lista para rolar por dentro */
     div[data-baseweb="popover"] [role="listbox"],
     div[data-baseweb="popover"] ul {
         max-height: 40vh !important;
@@ -119,7 +118,6 @@ st.markdown(
         box-shadow: 0 8px 24px rgba(176,38,255,0.35) !important;
         transition: transform .12s ease, box-shadow .12s ease !important;
     }
-    /* Elevação só em aparelhos com mouse — evita botão "preso" no toque */
     @media (hover: hover) {
         .stButton > button:hover,
         .stFormSubmitButton > button:hover {
@@ -205,13 +203,37 @@ st.markdown(
     }
     div[data-baseweb="notification"] { border-radius: 16px !important; }
 
+    /* ---- Alerta "É A SUA VEZ" (aluno chamado) ---- */
+    .vez-alert {
+        background: linear-gradient(135deg, var(--bt-accent) 0%, var(--bt-accent2) 100%);
+        border-radius: 22px;
+        padding: 2.2rem 1.5rem;
+        text-align: center;
+        box-shadow: 0 16px 45px rgba(176,38,255,0.45);
+        animation: vezpulse 1.4s ease-in-out infinite;
+    }
+    .vez-title {
+        font-family: 'Baloo 2', cursive; font-weight: 800;
+        font-size: 2.3rem; color: #ffffff; line-height: 1.1;
+    }
+    .vez-sub {
+        font-family: 'Nunito', sans-serif; font-size: 1.05rem;
+        color: #ffffff; opacity: 0.95; margin-top: 0.4rem;
+    }
+    @keyframes vezpulse {
+        0%, 100% { transform: scale(1);    box-shadow: 0 16px 45px rgba(176,38,255,0.45); }
+        50%      { transform: scale(1.02); box-shadow: 0 20px 60px rgba(176,38,255,0.75); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .vez-alert { animation: none; }
+    }
+
     hr { border-color: var(--bt-border) !important; }
 
     #MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; }
     [data-testid="stSidebar"] { display: none !important; }
     [data-testid="collapsedControl"] { display: none !important; }
 
-    /* Ajustes finos para telas pequenas (celular) */
     @media (max-width: 480px) {
         .block-container {
             padding-top: 2rem;
@@ -281,17 +303,19 @@ def aluno_ja_na_fila(contato: str) -> bool:
     return len(resultado.data) > 0
 
 
-def buscar_posicao(id_aluno: str) -> int | None:
+def buscar_posicao_chamado(id_aluno: str):
+    """Retorna (posicao, chamado). posicao é None se o aluno não está mais na
+    fila (Aguardando). chamado indica se o corretor já o chamou para atendimento."""
     fila = _executar(
         supabase.table(TABELA)
-        .select("id")
+        .select("id,chamado")
         .eq("status", "Aguardando")
         .order("data_hora", desc=False)
     )
-    ids = [r["id"] for r in fila.data]
-    if id_aluno in ids:
-        return ids.index(id_aluno) + 1
-    return None
+    for i, r in enumerate(fila.data):
+        if r["id"] == id_aluno:
+            return i + 1, bool(r.get("chamado"))
+    return None, False
 
 
 def buscar_status(id_aluno: str) -> str | None:
@@ -309,9 +333,8 @@ def buscar_status(id_aluno: str) -> str | None:
 TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for tema in temas]
 
 # ---------- PERSISTÊNCIA VIA URL (bilhete/ticket) ----------
-# Se o celular recarregar a página (Safari matando a aba por memória), a
-# st.session_state é apagada. Recuperamos o ID do aluno a partir da URL
-# (?ticket=<id>), devolvendo-o direto à tela de acompanhamento.
+# Se o celular recarregar a página, a session_state é apagada. Recuperamos
+# o ID do aluno a partir da URL (?ticket=<id>), devolvendo-o ao acompanhamento.
 if "meu_id" not in st.session_state and "ticket" in st.query_params:
     st.session_state["meu_id"] = st.query_params["ticket"]
 
@@ -388,14 +411,12 @@ if "meu_id" not in st.session_state:
             except Exception:
                 resultado = "erro"
 
-            # Fora do try: rerun/erros não são "engolidos" pelo except
             if resultado == "duplicado":
                 st.error("Você já está na fila de espera. Aguarde ser chamado.")
             elif resultado == "erro":
                 st.error("Não foi possível registrar seu check-in. Tente novamente em instantes.")
             else:
                 st.session_state["meu_id"] = resultado
-                # Grava o bilhete na URL para sobreviver a recarregamentos
                 st.query_params["ticket"] = resultado
                 st.rerun()
 
@@ -421,24 +442,43 @@ else:
     @st.fragment(run_every=8)
     def painel_posicao():
         try:
-            posicao = buscar_posicao(st.session_state["meu_id"])
+            posicao, chamado = buscar_posicao_chamado(st.session_state["meu_id"])
         except Exception:
             st.info("Atualizando sua posição... (reconectando)")
             return
 
-        # Ainda na fila: mostra a posição. O botão de novo check-in NÃO aparece —
-        # o aluno só pode reentrar depois que o atendimento dele for finalizado.
+        # Ainda na fila. O botão de novo check-in NÃO aparece — o aluno só pode
+        # reentrar depois que o atendimento dele for finalizado.
         if posicao is not None:
-            st.metric(label="Sua posição atual", value=f"{posicao}º")
-            if posicao == 1:
-                st.success("Fique atento! Você é o próximo a ser chamado.")
+            if chamado:
+                # O corretor chamou: alerta forte em destaque.
+                st.markdown(
+                    """
+                    <div class="vez-alert">
+                        <div class="vez-title">É A SUA VEZ!</div>
+                        <div class="vez-sub">Dirija-se à mesa do corretor.</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                # Vibra uma única vez na transição (Android/Chrome; iOS ignora)
+                if not st.session_state.get("vibrou_chamado"):
+                    components.html(
+                        "<script>if(navigator.vibrate){navigator.vibrate([400,150,400]);}</script>",
+                        height=0,
+                    )
+                    st.session_state["vibrou_chamado"] = True
             else:
-                st.info(f"{'Há 1 pessoa' if posicao == 2 else f'Há {posicao - 1} pessoas'} na sua frente.")
-            st.caption("Aguarde ser chamado. Você poderá fazer um novo check-in assim que seu atendimento for finalizado.")
+                st.session_state["vibrou_chamado"] = False
+                st.metric(label="Sua posição atual", value=f"{posicao}º")
+                if posicao == 1:
+                    st.success("Fique atento! Você é o próximo a ser chamado.")
+                else:
+                    st.info(f"{'Há 1 pessoa' if posicao == 2 else f'Há {posicao - 1} pessoas'} na sua frente.")
+                st.caption("Aguarde ser chamado. Você poderá fazer um novo check-in assim que seu atendimento for finalizado.")
             return
 
-        # Fora da fila: descobre o status real para exibir a mensagem correta
-        # e liberar o novo check-in.
+        # Fora da fila: descobre o status real para exibir a mensagem correta.
         try:
             status = buscar_status(st.session_state["meu_id"])
         except Exception:
