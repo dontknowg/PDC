@@ -219,8 +219,7 @@ def cabecalho_marca():
         <div class="bt-brand">
             <img src="{url_logo}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 14px rgba(255,255,255,0.15);">
             <div>
-                <div class="bt-brandname">BATINGA</div>
-                <div class="bt-brandsub">PROJETO DE CORREÇÕES</div>
+                <div class="bt-brandname">PROJETO DE CORREÇÕES</div>
             </div>
         </div>
         """,
@@ -281,7 +280,7 @@ if "meu_id" not in st.session_state:
     LISTA_NOMES = list(BASE_ALUNOS.keys()) + ["Outro (Não encontrei meu nome)"]
     
     nome_selecionado = st.selectbox(
-        "Nome completo (Comece a digitar para buscar)", 
+        "Nome completo", 
         LISTA_NOMES,
         index=None,
         placeholder="Selecione ou digite seu nome..."
@@ -313,7 +312,7 @@ if "meu_id" not in st.session_state:
 
     # 3. Campo Único de Tema para o Aluno
     tema_selecionado = st.selectbox(
-        "Tema da redação (Comece a digitar para buscar)", 
+        "Tema da redação", 
         TODOS_TEMAS,
         index=None,
         placeholder="Selecione o tema..."
