@@ -46,7 +46,7 @@ st.markdown(
 TABELA = "fila"
 
 # ==========================================================
-# VARIÁVEIS DE CORREÇÃO (Edite a lista com sua equipe)
+# VARIÁVEIS DE CORREÇÃO
 # ==========================================================
 CORRETORES = [
     "Davi Barbosa", 
@@ -66,7 +66,6 @@ supabase = init_connection()
 
 
 def _executar(query, tentativas: int = 2):
-    """Executa uma query com tentativa em caso de falha de rede."""
     ultimo_erro = None
     for _ in range(tentativas):
         try:
@@ -79,7 +78,6 @@ def _executar(query, tentativas: int = 2):
 def carregar_dados(filtro_status=None) -> pd.DataFrame:
     query = supabase.table(TABELA).select("*")
     if filtro_status == "Aguardando":
-        # Se for a fila, ordena por 'ordem_em' para permitir a função "Pular"
         query = query.eq("status", filtro_status).order("ordem_em", desc=False)
     elif filtro_status:
         query = query.eq("status", filtro_status).order("data_hora", desc=False)
@@ -107,7 +105,6 @@ def chamar_aluno(id_aluno: str) -> bool:
 
 
 def pular_aluno(id_aluno: str) -> bool:
-    """Joga o aluno para o final da fila atualizando o ordem_em."""
     try:
         _executar(
             supabase.table(TABELA).update({
@@ -123,7 +120,6 @@ def pular_aluno(id_aluno: str) -> bool:
 
 
 def desfazer_conclusao(id_aluno: str) -> bool:
-    """Retorna o aluno para a fila, no final dela, e limpa as notas."""
     payload = {
         "status": "Aguardando",
         "chamado": False,
@@ -145,60 +141,6 @@ def contar_por_status(dados: pd.DataFrame, status: str) -> int:
     if dados.empty:
         return 0
     return len(dados[dados["status"] == status])
-
-
-# ==========================================================
-# JANELA MODAL DE AVALIAÇÃO
-# ==========================================================
-@st.dialog("Avaliar Redação")
-def modal_avaliar(id_aluno: str, nome_aluno: str):
-    st.markdown(f"**Aluno:** {nome_aluno}")
-    
-    corretor = st.selectbox("Corretor responsável", CORRETORES, index=None, placeholder="Selecione seu nome...")
-    
-    st.markdown("#### Notas das Competências")
-    st.caption("Selecione os valores. A soma é automática.")
-    
-    c_cols = st.columns(5)
-    with c_cols[0]: n1 = st.selectbox("C1", OPCOES_NOTA, index=None, key=f"c1_{id_aluno}")
-    with c_cols[1]: n2 = st.selectbox("C2", OPCOES_NOTA, index=None, key=f"c2_{id_aluno}")
-    with c_cols[2]: n3 = st.selectbox("C3", OPCOES_NOTA, index=None, key=f"c3_{id_aluno}")
-    with c_cols[3]: n4 = st.selectbox("C4", OPCOES_NOTA, index=None, key=f"c4_{id_aluno}")
-    with c_cols[4]: n5 = st.selectbox("C5", OPCOES_NOTA, index=None, key=f"c5_{id_aluno}")
-    
-    v1 = n1 if n1 is not None else 0
-    v2 = n2 if n2 is not None else 0
-    v3 = n3 if n3 is not None else 0
-    v4 = n4 if n4 is not None else 0
-    v5 = n5 if n5 is not None else 0
-    
-    nota_total = v1 + v2 + v3 + v4 + v5
-    
-    st.metric("Nota Total Mapeada", f"{nota_total} / 1000")
-    
-    if st.button("Salvar e Concluir", type="primary", use_container_width=True):
-        if not corretor:
-            st.error("⚠️ Identifique o corretor antes de salvar.")
-            return
-        if None in [n1, n2, n3, n4, n5]:
-            st.error("⚠️ Preencha a nota de todas as 5 competências.")
-            return
-        
-        payload = {
-            "status": "Concluído",
-            "corretor": corretor,
-            "comp1": v1,
-            "comp2": v2,
-            "comp3": v3,
-            "comp4": v4,
-            "comp5": v5,
-            "nota": nota_total
-        }
-        try:
-            _executar(supabase.table(TABELA).update(payload).eq("id", id_aluno))
-            st.rerun()
-        except Exception:
-            st.error("Erro de conexão ao salvar. Tente novamente.")
 
 
 # ---------- AUTENTICAÇÃO ----------
@@ -235,7 +177,6 @@ except Exception:
 hoje = date.today().isoformat()
 dados_hoje = todos_dados[todos_dados["data_hora"].str.startswith(hoje)] if not todos_dados.empty else pd.DataFrame()
 
-# Métricas ajustadas (removido o bloco "Ausentes" isolado)
 col_m1, col_m2, col_m3 = st.columns(3)
 col_m1.metric("Na fila agora", contar_por_status(todos_dados, "Aguardando"))
 col_m2.metric("Corrigidos hoje", contar_por_status(dados_hoje, "Concluído"))
@@ -247,76 +188,141 @@ aba_fila, aba_dados = st.tabs(["Fila de Atendimento", "Base de Dados"])
 
 with aba_fila:
 
-    @st.fragment(run_every=10)
-    def exibir_fila():
-        try:
-            fila_espera = carregar_dados("Aguardando")
-        except Exception:
-            st.info("Reconectando ao banco de dados... a fila será atualizada em instantes.")
-            return
+    # ==========================================
+    # MODO FOCO: AVALIAÇÃO DE REDAÇÃO
+    # ==========================================
+    if "avaliar_id" in st.session_state:
+        st.subheader("📝 Avaliando Redação")
+        st.markdown(f"**Aluno:** {st.session_state['avaliar_nome']}")
 
-        if fila_espera.empty:
-            st.info("Nenhum aluno aguardando no momento.")
-            return
+        with st.container(border=True):
+            corretor = st.selectbox("Corretor responsável", CORRETORES, index=None, placeholder="Selecione seu nome...")
 
-        st.caption(
-            f"{len(fila_espera)} aluno(s) na fila. Cada corretor pode chamar um aluno "
-            "diferente — não é preciso concluir para chamar o próximo."
-        )
+            st.markdown("#### Notas das Competências")
+            st.caption("Selecione os valores. A soma é automática.")
 
-        for ordem, (_, aluno) in enumerate(fila_espera.iterrows(), start=1):
-            aid = aluno["id"]
-            chamado = bool(aluno.get("chamado", False))
-            with st.container(border=True):
-                col_info, col_acoes = st.columns([2, 3])
-                with col_info:
-                    marcador = "  ·  🔔 Chamado" if chamado else ""
-                    st.markdown(f"**{ordem}. {aluno['nome']}**{marcador}")
-                    st.caption(f"{aluno['turma']}  |  {aluno['tema']}  |  {aluno['contato']}")
-                with col_acoes:
-                    b_chamar, b_concluir, b_pular = st.columns(3)
-                    
-                    rotulo_chamar = "Chamar de novo" if chamado else "Chamar"
-                    if b_chamar.button(rotulo_chamar, key=f"chamar_{aid}", type="primary", use_container_width=True):
-                        if chamar_aluno(aid):
+            c_cols = st.columns(5)
+            with c_cols[0]: n1 = st.selectbox("C1", OPCOES_NOTA, index=None)
+            with c_cols[1]: n2 = st.selectbox("C2", OPCOES_NOTA, index=None)
+            with c_cols[2]: n3 = st.selectbox("C3", OPCOES_NOTA, index=None)
+            with c_cols[3]: n4 = st.selectbox("C4", OPCOES_NOTA, index=None)
+            with c_cols[4]: n5 = st.selectbox("C5", OPCOES_NOTA, index=None)
+
+            v1 = n1 if n1 is not None else 0
+            v2 = n2 if n2 is not None else 0
+            v3 = n3 if n3 is not None else 0
+            v4 = n4 if n4 is not None else 0
+            v5 = n5 if n5 is not None else 0
+
+            nota_total = v1 + v2 + v3 + v4 + v5
+
+            st.metric("Nota Total Mapeada", f"{nota_total} / 1000")
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            col_salvar, col_cancelar = st.columns(2)
+            with col_salvar:
+                if st.button("Salvar e Concluir Atendimento", type="primary", use_container_width=True):
+                    if not corretor:
+                        st.error("⚠️ Identifique o corretor antes de salvar.")
+                    elif None in [n1, n2, n3, n4, n5]:
+                        st.error("⚠️ Preencha a nota de todas as 5 competências.")
+                    else:
+                        payload = {
+                            "status": "Concluído",
+                            "corretor": corretor,
+                            "comp1": v1, "comp2": v2, "comp3": v3, "comp4": v4, "comp5": v5,
+                            "nota": nota_total
+                        }
+                        try:
+                            _executar(supabase.table(TABELA).update(payload).eq("id", st.session_state["avaliar_id"]))
+                            del st.session_state["avaliar_id"]
+                            del st.session_state["avaliar_nome"]
+                            st.rerun()
+                        except Exception:
+                            st.error("Erro de conexão ao salvar. Tente novamente.")
+            
+            with col_cancelar:
+                if st.button("Cancelar Avaliação", use_container_width=True):
+                    del st.session_state["avaliar_id"]
+                    del st.session_state["avaliar_nome"]
+                    st.rerun()
+
+    # ==========================================
+    # MODO NORMAL: FILA DE ESPERA
+    # ==========================================
+    else:
+        @st.fragment(run_every=10)
+        def exibir_fila():
+            try:
+                fila_espera = carregar_dados("Aguardando")
+            except Exception:
+                st.info("Reconectando ao banco de dados... a fila será atualizada em instantes.")
+                return
+
+            if fila_espera.empty:
+                st.info("Nenhum aluno aguardando no momento.")
+                return
+
+            st.caption(
+                f"{len(fila_espera)} aluno(s) na fila. Cada corretor pode chamar um aluno "
+                "diferente — não é preciso concluir para chamar o próximo."
+            )
+
+            for ordem, (_, aluno) in enumerate(fila_espera.iterrows(), start=1):
+                aid = aluno["id"]
+                chamado = bool(aluno.get("chamado", False))
+                with st.container(border=True):
+                    col_info, col_acoes = st.columns([2, 3])
+                    with col_info:
+                        marcador = "  ·  🔔 Chamado" if chamado else ""
+                        st.markdown(f"**{ordem}. {aluno['nome']}**{marcador}")
+                        st.caption(f"{aluno['turma']}  |  {aluno['tema']}  |  {aluno['contato']}")
+                    with col_acoes:
+                        b_chamar, b_concluir, b_pular = st.columns(3)
+                        
+                        rotulo_chamar = "Chamar de novo" if chamado else "Chamar"
+                        if b_chamar.button(rotulo_chamar, key=f"chamar_{aid}", type="primary", use_container_width=True):
+                            if chamar_aluno(aid):
+                                st.rerun()
+                                
+                        if b_concluir.button("Concluir", key=f"concluir_{aid}", use_container_width=True):
+                            # Salva o ID do aluno e entra no Modo Foco (recarrega a página)
+                            st.session_state["avaliar_id"] = aid
+                            st.session_state["avaliar_nome"] = aluno['nome']
                             st.rerun()
                             
-                    if b_concluir.button("Concluir", key=f"concluir_{aid}", use_container_width=True):
-                        # Chama a janela Modal criada lá em cima
-                        modal_avaliar(aid, aluno['nome'])
-                        
-                    if b_pular.button("Pular", key=f"pular_{aid}", use_container_width=True):
-                        if pular_aluno(aid):
+                        if b_pular.button("Pular", key=f"pular_{aid}", use_container_width=True):
+                            if pular_aluno(aid):
+                                st.rerun()
+
+        exibir_fila()
+
+        st.divider()
+        st.subheader("Correções Recentes")
+
+        try:
+            recentes_query = _executar(
+                supabase.table(TABELA)
+                .select("*")
+                .eq("status", "Concluído")
+                .order("data_hora", desc=True)
+                .limit(5)
+            )
+            recentes = pd.DataFrame(recentes_query.data) if recentes_query.data else pd.DataFrame()
+        except Exception:
+            recentes = pd.DataFrame()
+
+        if recentes.empty:
+            st.caption("Nenhuma redação corrigida ainda.")
+        else:
+            for _, row in recentes.iterrows():
+                col_info, col_acao = st.columns([4, 1])
+                with col_info:
+                    st.markdown(f"**{row['nome']}** — Nota: {row.get('nota', 'N/A')} _(Corretor: {row.get('corretor', 'N/A')})_")
+                with col_acao:
+                    if st.button("Desfazer", key=f"desfazer_{row['id']}", use_container_width=True):
+                        if desfazer_conclusao(row["id"]):
                             st.rerun()
-
-    exibir_fila()
-
-    st.divider()
-    st.subheader("Correções Recentes")
-
-    try:
-        recentes_query = _executar(
-            supabase.table(TABELA)
-            .select("*")
-            .eq("status", "Concluído")
-            .order("data_hora", desc=True)
-            .limit(5)
-        )
-        recentes = pd.DataFrame(recentes_query.data) if recentes_query.data else pd.DataFrame()
-    except Exception:
-        recentes = pd.DataFrame()
-
-    if recentes.empty:
-        st.caption("Nenhuma redação corrigida ainda.")
-    else:
-        for _, row in recentes.iterrows():
-            col_info, col_acao = st.columns([4, 1])
-            with col_info:
-                st.markdown(f"**{row['nome']}** — Nota: {row.get('nota', 'N/A')} _(Corretor: {row.get('corretor', 'N/A')})_")
-            with col_acao:
-                if st.button("Desfazer", key=f"desfazer_{row['id']}", use_container_width=True):
-                    if desfazer_conclusao(row["id"]):
-                        st.rerun()
 
 
 with aba_dados:
