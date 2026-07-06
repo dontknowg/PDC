@@ -302,18 +302,18 @@ def aluno_ja_na_fila(contato: str) -> bool:
 
 
 def buscar_posicao_chamado(id_aluno: str):
-    """Retorna (posicao, chamado). posicao é None se o aluno não está mais na
-    fila (Aguardando). chamado indica se o corretor já o chamou para atendimento."""
+    """Retorna (posicao, chamado, chamado_em). posicao é None se o aluno saiu da
+    fila. chamado_em muda a cada (re)chamada, permitindo re-disparar o alerta."""
     fila = _executar(
         supabase.table(TABELA)
-        .select("id,chamado")
+        .select("id,chamado,chamado_em")
         .eq("status", "Aguardando")
         .order("data_hora", desc=False)
     )
     for i, r in enumerate(fila.data):
         if r["id"] == id_aluno:
-            return i + 1, bool(r.get("chamado"))
-    return None, False
+            return i + 1, bool(r.get("chamado")), r.get("chamado_em")
+    return None, False, None
 
 
 def buscar_status(id_aluno: str) -> str | None:
@@ -466,7 +466,7 @@ else:
     @st.fragment(run_every=8)
     def painel_posicao():
         try:
-            posicao, chamado = buscar_posicao_chamado(st.session_state["meu_id"])
+            posicao, chamado, chamado_em = buscar_posicao_chamado(st.session_state["meu_id"])
         except Exception:
             st.info("Atualizando sua posição... (reconectando)")
             return
@@ -485,12 +485,13 @@ else:
                     """,
                     unsafe_allow_html=True,
                 )
-                # Dispara vibração + bip uma única vez na transição para "chamado"
-                if not st.session_state.get("alertou_chamado"):
+                # Dispara vibração + bip na 1ª chamada E a cada "Chamar de novo"
+                # (o corretor re-chama → chamado_em muda → re-disparamos o som).
+                if st.session_state.get("ultimo_chamado_em") != chamado_em:
                     components.html(SOM_CHAMADA, height=0)
-                    st.session_state["alertou_chamado"] = True
+                    st.session_state["ultimo_chamado_em"] = chamado_em
             else:
-                st.session_state["alertou_chamado"] = False
+                st.session_state["ultimo_chamado_em"] = None
                 st.metric(label="Sua posição atual", value=f"{posicao}º")
                 if posicao == 1:
                     st.success("Fique atento! Você é o próximo a ser chamado.")
