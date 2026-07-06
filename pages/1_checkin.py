@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
+from alunos import BASE_ALUNOS
 
 st.set_page_config(page_title="Check-in | Projeto de Correções", layout="centered")
 
@@ -192,10 +193,13 @@ st.markdown(
 # ---------- BLOCO DE MARCA (reutilizável) ----------
 
 def cabecalho_marca():
+    # Substitua a URL abaixo pelo link direto da logo oficial do Batinga
+    url_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" 
+    
     st.markdown(
-        """
+        f"""
         <div class="bt-brand">
-            <div class="bt-logo">B</div>
+            <img src="{url_logo}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 14px rgba(255,255,255,0.15);">
             <div>
                 <div class="bt-brandname">BATINGA</div>
                 <div class="bt-brandsub">PROJETO DE CORREÇÕES</div>
@@ -251,13 +255,48 @@ if "meu_id" not in st.session_state:
         st.title("Check-in da Fila")
         st.markdown("Preencha seus dados para entrar na fila de correção.")
 
-    with st.form("form_checkin"):
-        nome = st.text_input("Nome completo")
+    # 1. Monta a lista APENAS com os nomes e a opção "Outro" no final
+    LISTA_NOMES = list(BASE_ALUNOS.keys()) + ["Outro (Não encontrei meu nome)"]
+    
+    # 2. O aluno pesquisa o nome (index=None deixa o campo vazio por padrão)
+    nome_selecionado = st.selectbox(
+        "Nome completo (Comece a digitar para buscar)", 
+        LISTA_NOMES,
+        index=None,
+        placeholder="Selecione ou digite seu nome..."
+    )
+    
+    # 3. A lógica inteligente de autopreenchimento
+    if nome_selecionado == "Outro (Não encontrei meu nome)":
+        nome = st.text_input("Digite seu nome completo")
         contato = st.text_input("WhatsApp (ex: 82 99999-9999)")
-        turma = st.selectbox("Sua turma", ["", "Turma Presencial Manhã", "Turma Presencial Noite"])
-        tema = st.selectbox("Tema da redação", ["", "Eixo Temático 01: Saúde", "Eixo Temático 02: Tecnologia"])
+    
+    elif nome_selecionado is not None:
+        # Se escolheu um nome da lista, preenche e TRANCA o campo (disabled=True)
+        nome = nome_selecionado
+        contato_sugerido = BASE_ALUNOS.get(nome, "")
+        contato = st.text_input("WhatsApp", value=contato_sugerido, disabled=True)
+        
+    else:
+        # Estado inicial (nada selecionado): campo de WhatsApp fica vazio e trancado
+        nome = ""
+        contato = st.text_input("WhatsApp", value="", disabled=True)
 
-        enviado = st.form_submit_button("Entrar na Fila", use_container_width=True)
+    # 4. Turma e Tema também podem usar o index=None para forçar a escolha!
+    turma = st.selectbox(
+        "Sua turma", 
+        ["Turma Presencial Manhã", "Turma Presencial Noite"],
+        index=None,
+        placeholder="Selecione sua turma..."
+    )
+    tema = st.selectbox(
+        "Tema da redação", 
+        ["Eixo Temático 01: Saúde", "Eixo Temático 02: Tecnologia"],
+        index=None,
+        placeholder="Selecione o tema..."
+    )
+
+    enviado = st.button("Entrar na Fila", use_container_width=True)
 
     if enviado:
         if not all([nome, contato, turma, tema]):
