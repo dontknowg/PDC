@@ -3,6 +3,9 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime, date, timezone
 
+# Importando a lista oficial de corretores de forma limpa
+from corretores import LISTA_CORRETORES
+
 st.set_page_config(page_title="Painel | Projeto de Correções", layout="wide")
 
 st.markdown(
@@ -48,12 +51,7 @@ TABELA = "fila"
 # ==========================================================
 # VARIÁVEIS DE CORREÇÃO
 # ==========================================================
-CORRETORES = [
-    "Davi Barbosa", 
-    "Corretor 2", 
-    "Corretor 3", 
-    "Corretor 4"
-]
+CORRETORES = LISTA_CORRETORES
 OPCOES_NOTA = [0, 40, 80, 120, 160, 200]
 COLUNAS = ["id", "data_hora", "ordem_em", "nome", "contato", "turma", "tema", "status", "corretor", "comp1", "comp2", "comp3", "comp4", "comp5", "nota"]
 
@@ -242,7 +240,7 @@ with aba_fila:
                             st.error("Erro de conexão ao salvar. Tente novamente.")
             
             with col_cancelar:
-                if st.button("Cancelar Avaliação", use_container_width=True):
+                if st.button("Cancelar Evaluation", use_container_width=True):
                     del st.session_state["avaliar_id"]
                     del st.session_state["avaliar_nome"]
                     st.rerun()
@@ -286,7 +284,6 @@ with aba_fila:
                                 st.rerun()
                                 
                         if b_concluir.button("Concluir", key=f"concluir_{aid}", use_container_width=True):
-                            # Salva o ID do aluno e entra no Modo Foco (recarrega a página)
                             st.session_state["avaliar_id"] = aid
                             st.session_state["avaliar_nome"] = aluno['nome']
                             st.rerun()
