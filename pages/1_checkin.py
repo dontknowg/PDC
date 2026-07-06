@@ -22,12 +22,11 @@ st.markdown(
         --bt-border:  rgba(255,255,255,0.08);
         --bt-text:    #ffffff;
         --bt-muted:   #a9a9a9;
-        --bt-accent:  #b026ff;   /* magenta/roxo da marca */
+        --bt-accent:  #b026ff;
         --bt-accent2: #e0219a;
-        --bt-green:   #25d366;   /* WhatsApp */
+        --bt-green:   #25d366;
     }
 
-    /* ---- Fundo geral ---- */
     .stApp {
         background: var(--bt-bg);
         color: var(--bt-text);
@@ -39,7 +38,6 @@ st.markdown(
         max-width: 640px;
     }
 
-    /* ---- Tipografia pesada arredondada ---- */
     h1, h2, h3 {
         font-family: 'Baloo 2', cursive !important;
         font-weight: 800 !important;
@@ -50,17 +48,13 @@ st.markdown(
 
     p, label, .stMarkdown { color: var(--bt-text); }
 
-    /* ---- Labels dos campos ---- */
     label, .stTextInput label, .stSelectbox label {
         font-family: 'Baloo 2', cursive !important;
         font-weight: 600 !important;
         color: var(--bt-muted) !important;
         font-size: 0.95rem !important;
     }
-    
-    /* ---- Inputs ---- */
-    
-    /* Regra apenas para o campo de texto digitável (WhatsApp) */
+
     .stTextInput input {
         background: var(--bt-surface) !important;
         color: var(--bt-text) !important;
@@ -71,7 +65,6 @@ st.markdown(
         font-size: 1rem !important;
     }
 
-    /* Regra apenas para as caixas de seleção (Nome, Turma e Tema) */
     .stSelectbox div[data-baseweb="select"] > div {
         background: var(--bt-surface) !important;
         color: var(--bt-text) !important;
@@ -80,21 +73,38 @@ st.markdown(
         box-shadow: 0 2px 10px rgba(0,0,0,0.35) !important;
     }
 
-    /* Efeitos de brilho ao clicar */
     .stTextInput input:focus, .stSelectbox div[data-baseweb="select"] > div:focus-within {
         border-color: var(--bt-accent) !important;
         box-shadow: 0 0 0 3px rgba(176,38,255,0.25) !important;
     }
-    
+
     .stTextInput input::placeholder { color: #6b6b6b; }
 
-    /* dropdown popover */
     div[data-baseweb="popover"] div {
         background: var(--bt-surface) !important;
         color: var(--bt-text) !important;
     }
 
-    /* ---- Botões largos, arredondados, com sombra suave ---- */
+    /* Item destacado/selecionado do dropdown (visível no toque) */
+    div[data-baseweb="popover"] li:hover,
+    div[data-baseweb="popover"] li[aria-selected="true"] {
+        background: rgba(176,38,255,0.22) !important;
+    }
+
+    /* CORREÇÃO MOBILE: limita a altura da lista para rolar por dentro
+       em vez de estourar o topo da tela (barra de status) no celular */
+    div[data-baseweb="popover"] [role="listbox"],
+    div[data-baseweb="popover"] ul {
+        max-height: 40vh !important;
+        overflow-y: auto !important;
+    }
+
+    /* CORREÇÃO iOS: fonte >= 16px evita o zoom automático do Safari */
+    .stTextInput input,
+    div[data-baseweb="select"] input {
+        font-size: 16px !important;
+    }
+
     .stButton > button,
     .stFormSubmitButton > button {
         width: 100%;
@@ -109,14 +119,20 @@ st.markdown(
         box-shadow: 0 8px 24px rgba(176,38,255,0.35) !important;
         transition: transform .12s ease, box-shadow .12s ease !important;
     }
-    .stButton > button:hover,
-    .stFormSubmitButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 30px rgba(176,38,255,0.5) !important;
-        color: #ffffff !important;
+    /* Elevação só em aparelhos com mouse — evita botão "preso" no toque */
+    @media (hover: hover) {
+        .stButton > button:hover,
+        .stFormSubmitButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(176,38,255,0.5) !important;
+            color: #ffffff !important;
+        }
+    }
+    .stButton > button:active,
+    .stFormSubmitButton > button:active {
+        transform: scale(0.99);
     }
 
-    /* botão secundário "Novo check-in" — contorno */
     .secondary-btn .stButton > button {
         background: transparent !important;
         border: 1.5px solid var(--bt-border) !important;
@@ -129,7 +145,6 @@ st.markdown(
         box-shadow: 0 6px 18px rgba(176,38,255,0.25) !important;
     }
 
-    /* ---- Cartão / container ---- */
     .bt-card {
         background: var(--bt-surface);
         border: 1px solid var(--bt-border);
@@ -139,7 +154,6 @@ st.markdown(
         margin-bottom: 1.2rem;
     }
 
-    /* ---- Cabeçalho da marca ---- */
     .bt-brand {
         display: flex; align-items: center; gap: 12px;
         margin-bottom: 0.4rem;
@@ -160,7 +174,6 @@ st.markdown(
         margin-top: -4px;
     }
 
-    /* ---- Métrica de posição ---- */
     [data-testid="stMetric"] {
         background: linear-gradient(135deg, rgba(176,38,255,0.18), rgba(224,33,154,0.10));
         border: 1px solid rgba(176,38,255,0.35);
@@ -169,9 +182,7 @@ st.markdown(
         text-align: center;
         box-shadow: 0 14px 40px rgba(176,38,255,0.18);
     }
-    [data-testid="stMetricLabel"] {
-        justify-content: center;
-    }
+    [data-testid="stMetricLabel"] { justify-content: center; }
     [data-testid="stMetricLabel"] p {
         font-family: 'Baloo 2', cursive !important;
         font-weight: 600 !important;
@@ -186,7 +197,6 @@ st.markdown(
         justify-content: center;
     }
 
-    /* ---- Alertas (success/info/error) ---- */
     .stAlert {
         border-radius: 16px !important;
         border: none !important;
@@ -195,15 +205,22 @@ st.markdown(
     }
     div[data-baseweb="notification"] { border-radius: 16px !important; }
 
-    /* ---- Divisor ---- */
     hr { border-color: var(--bt-border) !important; }
 
-    /* Esconde o menu/rodapé padrão do Streamlit */
     #MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; }
-
-    /* Trava de Segurança: Oculta completamente a barra lateral e o botão de colapso */
     [data-testid="stSidebar"] { display: none !important; }
     [data-testid="collapsedControl"] { display: none !important; }
+
+    /* Ajustes finos para telas pequenas (celular) */
+    @media (max-width: 480px) {
+        .block-container {
+            padding-top: 2rem;
+            padding-left: 1.1rem;
+            padding-right: 1.1rem;
+        }
+        h1 { font-size: 2rem !important; }
+        .bt-brandname { font-size: 1.05rem; letter-spacing: 1px; }
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -231,7 +248,7 @@ def cabecalho_marca():
 
 
 # ============================================================
-#  MOTOR — LOGICA DA FILA
+#  MOTOR — LÓGICA DA FILA
 # ============================================================
 
 @st.cache_resource
@@ -242,24 +259,34 @@ def init_connection() -> Client:
 supabase = init_connection()
 
 
+def _executar(query, tentativas: int = 2):
+    """Executa uma query do Supabase com nova tentativa em falhas transitórias
+    de rede (timeouts/conexão), comuns em conexões móveis."""
+    ultimo_erro = None
+    for _ in range(tentativas):
+        try:
+            return query.execute()
+        except Exception as e:  # noqa: BLE001
+            ultimo_erro = e
+    raise ultimo_erro
+
+
 def aluno_ja_na_fila(contato: str) -> bool:
-    resultado = (
+    resultado = _executar(
         supabase.table(TABELA)
         .select("id")
         .eq("status", "Aguardando")
         .eq("contato", contato)
-        .execute()
     )
     return len(resultado.data) > 0
 
 
 def buscar_posicao(id_aluno: str) -> int | None:
-    fila = (
+    fila = _executar(
         supabase.table(TABELA)
         .select("id")
         .eq("status", "Aguardando")
         .order("data_hora", desc=False)
-        .execute()
     )
     ids = [r["id"] for r in fila.data]
     if id_aluno in ids:
@@ -268,7 +295,6 @@ def buscar_posicao(id_aluno: str) -> int | None:
 
 
 # ---------- PREPARAÇÃO DOS TEMAS ----------
-# Correção do erro de digitação: "for tema" no lugar de "for_tema"
 TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for tema in temas]
 
 # ---------- TELA DE CHECK-IN ----------
@@ -281,23 +307,23 @@ if "meu_id" not in st.session_state:
 
     # 1. Pesquisa do Aluno
     LISTA_NOMES = list(BASE_ALUNOS.keys()) + ["Outro (Não encontrei meu nome)"]
-    
+
     nome_selecionado = st.selectbox(
-        "Nome completo", 
+        "Nome completo",
         LISTA_NOMES,
         index=None,
         placeholder="Selecione ou digite seu nome..."
     )
-    
-    # 2. A lógica invisível do aluno
+
+    # 2. Lógica invisível do aluno
     if nome_selecionado == "Outro (Não encontrei meu nome)":
         nome = st.text_input("Digite seu nome completo")
         contato = st.text_input("WhatsApp (apenas números com DDD)")
         turma = st.selectbox(
-            "Sua turma", 
+            "Sua turma",
             [
-                "SEMI PRO", "TERÇA-TARDE", "TERÇA-NOITE", "QUARTA-PRO", 
-                "QUARTA-TARDE", "QUARTA-ONLINE", "ARAPIRACA", 
+                "SEMI PRO", "TERÇA-TARDE", "TERÇA-NOITE", "QUARTA-PRO",
+                "QUARTA-TARDE", "QUARTA-ONLINE", "ARAPIRACA",
                 "SEXTA-MANHÃ", "SEXTA-TARDE", "CONSULTORIA"
             ],
             index=None,
@@ -313,9 +339,9 @@ if "meu_id" not in st.session_state:
         contato = ""
         turma = ""
 
-    # 3. Campo Único de Tema para o Aluno
+    # 3. Campo único de tema
     tema_selecionado = st.selectbox(
-        "Tema da redação", 
+        "Tema da redação",
         TODOS_TEMAS,
         index=None,
         placeholder="Selecione o tema..."
@@ -326,23 +352,32 @@ if "meu_id" not in st.session_state:
     if enviado:
         if not all([nome, contato, turma, tema_selecionado]):
             st.error("Preencha todos os dados antes de continuar.")
-        elif aluno_ja_na_fila(contato):
-            st.error("Você já está na fila de espera. Aguarde ser chamado.")
         else:
+            resultado = None  # "duplicado" | "erro" | novo id (str)
             try:
-                # 4. Descobre de qual livro é o tema de forma oculta
-                livro_do_tema = next((livro for livro, temas in TEMAS_POR_LIVRO.items() if tema_selecionado in temas), "Outro")
-                tema_final = f"{livro_do_tema} - {tema_selecionado}"
-                
-                resposta = (
-                    supabase.table(TABELA)
-                    .insert({"nome": nome, "contato": contato, "turma": turma, "tema": tema_final})
-                    .execute()
-                )
-                st.session_state["meu_id"] = resposta.data[0]["id"]
-                st.rerun()
+                with st.spinner("Registrando seu check-in..."):
+                    if aluno_ja_na_fila(contato):
+                        resultado = "duplicado"
+                    else:
+                        livro_do_tema = next((livro for livro, temas in TEMAS_POR_LIVRO.items() if tema_selecionado in temas), "Outro")
+                        tema_final = f"{livro_do_tema} - {tema_selecionado}"
+
+                        resposta = _executar(
+                            supabase.table(TABELA)
+                            .insert({"nome": nome, "contato": contato, "turma": turma, "tema": tema_final})
+                        )
+                        resultado = resposta.data[0]["id"]
             except Exception:
+                resultado = "erro"
+
+            # Fora do try: rerun/erros não são "engolidos" pelo except
+            if resultado == "duplicado":
+                st.error("Você já está na fila de espera. Aguarde ser chamado.")
+            elif resultado == "erro":
                 st.error("Não foi possível registrar seu check-in. Tente novamente em instantes.")
+            else:
+                st.session_state["meu_id"] = resultado
+                st.rerun()
 
 # ---------- TELA DE ACOMPANHAMENTO ----------
 
@@ -353,7 +388,11 @@ else:
 
     @st.fragment(run_every=8)
     def painel_posicao():
-        posicao = buscar_posicao(st.session_state["meu_id"])
+        try:
+            posicao = buscar_posicao(st.session_state["meu_id"])
+        except Exception:
+            st.info("Atualizando sua posição... (reconectando)")
+            return
 
         if posicao is not None:
             st.metric(label="Sua posição atual", value=f"{posicao}º")
