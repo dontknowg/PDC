@@ -56,7 +56,7 @@ st.markdown(
         color: var(--bt-muted) !important;
         font-size: 0.95rem !important;
     }
-
+    
     /* ---- Inputs ---- */
     .stTextInput input,
     .stSelectbox div[data-baseweb="select"] > div {
@@ -64,8 +64,10 @@ st.markdown(
         color: var(--bt-text) !important;
         border: 1px solid var(--bt-border) !important;
         border-radius: 14px !important;
-        padding: 6px 6px !important;
+        padding: 12px 14px !important; /* Aumentamos o respiro interno */
+        min-height: 48px !important;   /* Garantimos uma altura mínima padrão */
         box-shadow: 0 2px 10px rgba(0,0,0,0.35) !important;
+        font-size: 1rem !important;
     }
     .stTextInput input:focus {
         border-color: var(--bt-accent) !important;
