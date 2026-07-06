@@ -174,22 +174,35 @@ with aba_dados:
     if todos_dados.empty:
         st.info("Nenhum dado registrado ainda.")
     else:
-        col_filtro_status, col_filtro_turma, col_filtro_data = st.columns(3)
+        col_filtro_status, col_filtro_turma = st.columns(2)
         with col_filtro_status:
             filtro_st = st.multiselect("Status", options=todos_dados["status"].unique().tolist(), default=todos_dados["status"].unique().tolist())
         with col_filtro_turma:
             filtro_turma = st.multiselect("Turma", options=todos_dados["turma"].unique().tolist(), default=todos_dados["turma"].unique().tolist())
-        with col_filtro_data:
-            datas_disponiveis = pd.to_datetime(todos_dados["data_hora"]).dt.date
-            filtro_data = st.date_input("Período", value=(datas_disponiveis.min(), datas_disponiveis.max()))
+
+        datas_disponiveis = pd.to_datetime(todos_dados["data_hora"]).dt.date
+        col_modo, col_data = st.columns([1, 2])
+        with col_modo:
+            modo_data = st.radio("Filtrar por", ["Dia único", "Intervalo"], horizontal=True, label_visibility="collapsed")
+        with col_data:
+            if modo_data == "Dia único":
+                dia_selecionado = st.date_input("Data", value=date.today())
+                data_inicio = dia_selecionado
+                data_fim = dia_selecionado
+            else:
+                intervalo = st.date_input("Período", value=(datas_disponiveis.min(), datas_disponiveis.max()))
+                if isinstance(intervalo, tuple) and len(intervalo) == 2:
+                    data_inicio, data_fim = intervalo
+                else:
+                    data_inicio = intervalo if not isinstance(intervalo, tuple) else intervalo[0]
+                    data_fim = data_inicio
 
         dados_filtrados = todos_dados.copy()
         dados_filtrados = dados_filtrados[dados_filtrados["status"].isin(filtro_st)]
         dados_filtrados = dados_filtrados[dados_filtrados["turma"].isin(filtro_turma)]
 
-        if isinstance(filtro_data, tuple) and len(filtro_data) == 2:
-            datas_col = pd.to_datetime(dados_filtrados["data_hora"]).dt.date
-            dados_filtrados = dados_filtrados[(datas_col >= filtro_data[0]) & (datas_col <= filtro_data[1])]
+        datas_col = pd.to_datetime(dados_filtrados["data_hora"]).dt.date
+        dados_filtrados = dados_filtrados[(datas_col >= data_inicio) & (datas_col <= data_fim)]
 
         st.caption(f"{len(dados_filtrados)} registro(s) encontrado(s)")
 
