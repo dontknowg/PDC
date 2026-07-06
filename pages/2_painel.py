@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
-import urllib.parse
 from datetime import datetime, date
 
 st.set_page_config(page_title="Painel | Projeto de Correções", layout="wide")
@@ -101,12 +100,6 @@ def contar_por_status(dados: pd.DataFrame, status: str) -> int:
     return len(dados[dados["status"] == status])
 
 
-def gerar_link_whatsapp(contato: str, nome: str) -> str:
-    numero = "".join(filter(str.isdigit, str(contato)))
-    texto = f"Olá, {nome}! É a sua vez no Projeto de Correções. Dirija-se à mesa do corretor."
-    return f"https://wa.me/55{numero}?text={urllib.parse.quote(texto)}"
-
-
 # ---------- AUTENTICAÇÃO ----------
 
 if not st.session_state.get("autenticado"):
@@ -187,15 +180,9 @@ with aba_fila:
         st.subheader(f"Chamando: {proximo['nome']}")
         st.caption(f"{proximo['turma']}  |  {proximo['tema']}  |  {proximo['contato']}")
 
-        col_wa, col_concluir, col_ausente = st.columns([1.2, 1, 1])
-        with col_wa:
-            st.link_button(
-                "Chamar no WhatsApp",
-                gerar_link_whatsapp(proximo["contato"], proximo["nome"]),
-                use_container_width=True,
-            )
+        col_concluir, col_ausente = st.columns(2)
         with col_concluir:
-            if st.button("Concluir Atendimento", use_container_width=True):
+            if st.button("Concluir Atendimento", use_container_width=True, type="primary"):
                 if atualizar_status(proximo["id"], "Concluído"):
                     st.rerun()
         with col_ausente:
