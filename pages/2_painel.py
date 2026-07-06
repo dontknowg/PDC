@@ -171,42 +171,34 @@ with aba_fila:
             st.info("Nenhum aluno aguardando no momento.")
             return
 
-        st.dataframe(
-            fila_espera[["data_hora", "nome", "contato", "turma", "tema"]],
-            column_config={
-                "data_hora": st.column_config.DatetimeColumn("Horário", format="HH:mm:ss"),
-                "nome": "Nome",
-                "contato": "WhatsApp",
-                "turma": "Turma",
-                "tema": "Tema",
-            },
-            hide_index=True,
-            use_container_width=True,
+        st.caption(
+            f"{len(fila_espera)} aluno(s) na fila. Cada corretor pode chamar um aluno "
+            "diferente — não é preciso concluir para chamar o próximo."
         )
 
-        st.divider()
-
-        proximo = fila_espera.iloc[0]
-        ja_chamado = bool(proximo.get("chamado", False))
-
-        st.subheader(f"Próximo: {proximo['nome']}")
-        st.caption(f"{proximo['turma']}  |  {proximo['tema']}  |  {proximo['contato']}")
-        if ja_chamado:
-            st.success("Aluno chamado — aguardando ele chegar à mesa.")
-
-        col_chamar, col_concluir, col_ausente = st.columns(3)
-        with col_chamar:
-            if st.button("Chamar Aluno", use_container_width=True, type="primary", disabled=ja_chamado):
-                if chamar_aluno(proximo["id"]):
-                    st.rerun()
-        with col_concluir:
-            if st.button("Concluir Atendimento", use_container_width=True):
-                if atualizar_status(proximo["id"], "Concluído"):
-                    st.rerun()
-        with col_ausente:
-            if st.button("Marcar Ausente", use_container_width=True):
-                if atualizar_status(proximo["id"], "Ausente"):
-                    st.rerun()
+        # Lista ordenada por chegada. Cada aluno tem os próprios botões, então
+        # vários corretores chamam/atendem em paralelo.
+        for ordem, (_, aluno) in enumerate(fila_espera.iterrows(), start=1):
+            aid = aluno["id"]
+            chamado = bool(aluno.get("chamado", False))
+            with st.container(border=True):
+                col_info, col_acoes = st.columns([2, 3])
+                with col_info:
+                    marcador = "  ·  🔔 Chamado" if chamado else ""
+                    st.markdown(f"**{ordem}. {aluno['nome']}**{marcador}")
+                    st.caption(f"{aluno['turma']}  |  {aluno['tema']}  |  {aluno['contato']}")
+                with col_acoes:
+                    b_chamar, b_concluir, b_ausente = st.columns(3)
+                    if b_chamar.button("Chamar", key=f"chamar_{aid}", type="primary",
+                                       disabled=chamado, use_container_width=True):
+                        if chamar_aluno(aid):
+                            st.rerun()
+                    if b_concluir.button("Concluir", key=f"concluir_{aid}", use_container_width=True):
+                        if atualizar_status(aid, "Concluído"):
+                            st.rerun()
+                    if b_ausente.button("Ausente", key=f"ausente_{aid}", use_container_width=True):
+                        if atualizar_status(aid, "Ausente"):
+                            st.rerun()
 
     exibir_fila()
 
