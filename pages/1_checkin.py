@@ -91,14 +91,12 @@ st.markdown(
         background: rgba(176,38,255,0.22) !important;
     }
 
-    /* CORREÇÃO MOBILE: limita a altura da lista para rolar por dentro */
     div[data-baseweb="popover"] [role="listbox"],
     div[data-baseweb="popover"] ul {
         max-height: 40vh !important;
         overflow-y: auto !important;
     }
 
-    /* CORREÇÃO iOS: fonte >= 16px evita o zoom automático do Safari */
     .stTextInput input,
     div[data-baseweb="select"] input {
         font-size: 16px !important;
@@ -329,12 +327,41 @@ def buscar_status(id_aluno: str) -> str | None:
     return resultado.data[0]["status"]
 
 
+# Script de alerta: vibração (Android) + bip duplo de notificação (Web Audio).
+# O áudio só toca se o navegador tiver "desbloqueio" por um toque prévio do
+# usuário (por isso o botão "Ativar aviso sonoro" na tela de espera). No iOS,
+# o som automático é bloqueado pelo sistema — a vibração também não existe lá.
+SOM_CHAMADA = """
+<script>
+(function(){
+  try { if (navigator.vibrate) { navigator.vibrate([400,150,400,150,400]); } } catch(e){}
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    var ctx = new AC();
+    var tocar = function(){
+      function beep(freq, t0, dur){
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + t0);
+        g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t0 + dur);
+        o.start(ctx.currentTime + t0); o.stop(ctx.currentTime + t0 + dur);
+      }
+      beep(880, 0, 0.18); beep(1175, 0.22, 0.22);
+    };
+    if (ctx.state === 'suspended') { ctx.resume().then(tocar).catch(function(){}); }
+    else { tocar(); }
+  } catch(e){}
+})();
+</script>
+"""
+
 # ---------- PREPARAÇÃO DOS TEMAS ----------
 TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for tema in temas]
 
 # ---------- PERSISTÊNCIA VIA URL (bilhete/ticket) ----------
-# Se o celular recarregar a página, a session_state é apagada. Recuperamos
-# o ID do aluno a partir da URL (?ticket=<id>), devolvendo-o ao acompanhamento.
 if "meu_id" not in st.session_state and "ticket" in st.query_params:
     st.session_state["meu_id"] = st.query_params["ticket"]
 
@@ -346,7 +373,6 @@ if "meu_id" not in st.session_state:
         st.title("Check-in da Fila")
         st.markdown("Preencha seus dados para entrar na fila de correção.")
 
-    # 1. Pesquisa do Aluno
     LISTA_NOMES = list(BASE_ALUNOS.keys()) + ["Outro (Não encontrei meu nome)"]
 
     nome_selecionado = st.selectbox(
@@ -356,7 +382,6 @@ if "meu_id" not in st.session_state:
         placeholder="Selecione ou digite seu nome..."
     )
 
-    # 2. Lógica invisível do aluno
     if nome_selecionado == "Outro (Não encontrei meu nome)":
         nome = st.text_input("Digite seu nome completo")
         contato = st.text_input("WhatsApp (apenas números com DDD)")
@@ -380,7 +405,6 @@ if "meu_id" not in st.session_state:
         contato = ""
         turma = ""
 
-    # 3. Campo único de tema
     tema_selecionado = st.selectbox(
         "Tema da redação",
         TODOS_TEMAS,
@@ -461,24 +485,32 @@ else:
                     """,
                     unsafe_allow_html=True,
                 )
-                # Vibra uma única vez na transição (Android/Chrome; iOS ignora)
-                if not st.session_state.get("vibrou_chamado"):
-                    components.html(
-                        "<script>if(navigator.vibrate){navigator.vibrate([400,150,400]);}</script>",
-                        height=0,
-                    )
-                    st.session_state["vibrou_chamado"] = True
+                # Dispara vibração + bip uma única vez na transição para "chamado"
+                if not st.session_state.get("alertou_chamado"):
+                    components.html(SOM_CHAMADA, height=0)
+                    st.session_state["alertou_chamado"] = True
             else:
-                st.session_state["vibrou_chamado"] = False
+                st.session_state["alertou_chamado"] = False
                 st.metric(label="Sua posição atual", value=f"{posicao}º")
                 if posicao == 1:
                     st.success("Fique atento! Você é o próximo a ser chamado.")
                 else:
                     st.info(f"{'Há 1 pessoa' if posicao == 2 else f'Há {posicao - 1} pessoas'} na sua frente.")
                 st.caption("Aguarde ser chamado. Você poderá fazer um novo check-in assim que seu atendimento for finalizado.")
+
+                # Permite o aluno "desbloquear" o som (necessário nos navegadores).
+                # O clique já provoca o rerun; tocamos o teste sem st.rerun() para
+                # o iframe do áudio não ser descartado antes de executar.
+                if not st.session_state.get("som_ativado"):
+                    if st.button("Ativar aviso sonoro"):
+                        st.session_state["som_ativado"] = True
+                        components.html(SOM_CHAMADA, height=0)  # bip de teste no toque
+                else:
+                    st.caption("Aviso sonoro ativado.")
             return
 
-        # Fora da fila: descobre o status real para exibir a mensagem correta.
+        # Fora da fila: descobre o status real para exibir a mensagem correta
+        # e liberar o novo check-in.
         try:
             status = buscar_status(st.session_state["meu_id"])
         except Exception:
