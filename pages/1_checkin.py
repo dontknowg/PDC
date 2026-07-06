@@ -200,6 +200,10 @@ st.markdown(
 
     /* Esconde o menu/rodapé padrão do Streamlit */
     #MainMenu, footer, header[data-testid="stHeader"] { visibility: hidden; }
+
+    /* Trava de Segurança: Oculta completamente a barra lateral e o botão de colapso */
+    [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="collapsedControl"] { display: none !important; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -215,7 +219,8 @@ def cabecalho_marca():
         <div class="bt-brand">
             <img src="{url_logo}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 14px rgba(255,255,255,0.15);">
             <div>
-                <div class="bt-brandname">PROJETO DE CORREÇÕES</div>
+                <div class="bt-brandname">BATINGA</div>
+                <div class="bt-brandsub">PROJETO DE CORREÇÕES</div>
             </div>
         </div>
         """,
@@ -261,8 +266,7 @@ def buscar_posicao(id_aluno: str) -> int | None:
 
 
 # ---------- PREPARAÇÃO DOS TEMAS ----------
-# Junta todos os temas de todos os livros em uma única lista plana para o aluno
-TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for tema in temas]
+TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for_tema in temas]
 
 # ---------- TELA DE CHECK-IN ----------
 
@@ -276,7 +280,7 @@ if "meu_id" not in st.session_state:
     LISTA_NOMES = list(BASE_ALUNOS.keys()) + ["Outro (Não encontrei meu nome)"]
     
     nome_selecionado = st.selectbox(
-        "Nome completo", 
+        "Nome completo (Comece a digitar para buscar)", 
         LISTA_NOMES,
         index=None,
         placeholder="Selecione ou digite seu nome..."
@@ -306,9 +310,9 @@ if "meu_id" not in st.session_state:
         contato = ""
         turma = ""
 
-    # 3. Campo Único de Tema para o Aluno (puxando todos os temas do arquivo novo)
+    # 3. Campo Único de Tema para o Aluno
     tema_selecionado = st.selectbox(
-        "Tema da redação", 
+        "Tema da redação (Comece a digitar para buscar)", 
         TODOS_TEMAS,
         index=None,
         placeholder="Selecione o tema..."
@@ -323,10 +327,8 @@ if "meu_id" not in st.session_state:
             st.error("Você já está na fila de espera. Aguarde ser chamado.")
         else:
             try:
-                # 4. A mágica invisível: Descobrimos de qual livro é esse tema
+                # 4. Descobre de qual livro é o tema de forma oculta
                 livro_do_tema = next((livro for livro, temas in TEMAS_POR_LIVRO.items() if tema_selecionado in temas), "Outro")
-                
-                # Montamos o texto perfeito para salvar no seu banco de dados
                 tema_final = f"{livro_do_tema} - {tema_selecionado}"
                 
                 resposta = (
