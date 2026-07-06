@@ -327,36 +327,104 @@ def buscar_status(id_aluno: str) -> str | None:
     return resultado.data[0]["status"]
 
 
-# Script de alerta: vibração (Android) + bip duplo de notificação (Web Audio).
-# O áudio só toca se o navegador tiver "desbloqueio" por um toque prévio do
-# usuário (por isso o botão "Ativar aviso sonoro" na tela de espera). No iOS,
-# o som automático é bloqueado pelo sistema — a vibração também não existe lá.
-SOM_CHAMADA = """
+# ---------- NOTIFICADOR PERSISTENTE (som + vibração + tela acesa) ----------
+# Componente montado UMA vez (fora do fragmento), com seu próprio polling ao
+# Supabase. Assim o "desbloqueio" do áudio (feito pelo toque no botão) vale para
+# o MESMO contexto que depois toca o alerta — corrigindo a falha anterior, em
+# que cada atualização recriava o iframe e perdia a permissão de áudio.
+# Limites honestos: no iPhone o Safari NÃO vibra (a Apple não expõe a API) e o
+# som só toca com a tela/aba aberta; nenhum site toca com o aparelho bloqueado.
+_NOTIFIER_HTML = """
+<div id="wrap" style="font-family: system-ui, -apple-system, sans-serif; text-align:center;">
+  <button id="ativar" style="
+      width:100%; padding:0.8rem 1rem; border:none; border-radius:16px; cursor:pointer;
+      font-size:1rem; font-weight:700; color:#fff;
+      background:linear-gradient(135deg,#b026ff 0%,#e0219a 100%);
+      box-shadow:0 8px 24px rgba(176,38,255,0.35);">
+    Ativar aviso sonoro
+  </button>
+  <div id="ok" style="display:none; color:#9a9a9a; font-size:0.9rem; padding-top:6px;">
+    Aviso sonoro ativado. Mantenha esta tela aberta.
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
-  try { if (navigator.vibrate) { navigator.vibrate([400,150,400,150,400]); } } catch(e){}
-  try {
-    var AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    var ctx = new AC();
-    var tocar = function(){
-      function beep(freq, t0, dur){
-        var o = ctx.createOscillator(), g = ctx.createGain();
+  var URL = "%%URL%%", KEY = "%%KEY%%", TICKET = "%%TICKET%%";
+  var client = null;
+  try { client = supabase.createClient(URL, KEY); } catch(e) { return; }
+
+  var ctx = null, unlocked = false, last = null, first = true, wakeLock = null;
+
+  function beep(){
+    if(!ctx) return;
+    try{
+      function tone(f,t0,dur){
+        var o=ctx.createOscillator(), g=ctx.createGain();
         o.connect(g); g.connect(ctx.destination);
-        o.type = 'sine'; o.frequency.value = freq;
-        g.gain.setValueAtTime(0.0001, ctx.currentTime + t0);
-        g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + t0 + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t0 + dur);
-        o.start(ctx.currentTime + t0); o.stop(ctx.currentTime + t0 + dur);
+        o.type='sine'; o.frequency.value=f;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime+t0);
+        g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime+t0+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+t0+dur);
+        o.start(ctx.currentTime+t0); o.stop(ctx.currentTime+t0+dur);
       }
-      beep(880, 0, 0.18); beep(1175, 0.22, 0.22);
-    };
-    if (ctx.state === 'suspended') { ctx.resume().then(tocar).catch(function(){}); }
-    else { tocar(); }
-  } catch(e){}
+      tone(880,0,0.18); tone(1175,0.22,0.22);
+    }catch(e){}
+  }
+  function vibrar(){ try{ if(navigator.vibrate) navigator.vibrate([400,150,400,150,400]); }catch(e){} }
+  async function pedirWakeLock(){
+    try{ if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); } }catch(e){}
+  }
+
+  var btn = document.getElementById('ativar');
+  var ok = document.getElementById('ok');
+  btn.addEventListener('click', async function(){
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+      if(ctx.state === 'suspended'){ await ctx.resume(); }
+      beep();            // toca um teste no gesto (destrava o áudio)
+      unlocked = true;
+    }catch(e){}
+    await pedirWakeLock();
+    btn.style.display='none';
+    ok.style.display='block';
+  });
+
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible' && unlocked){ pedirWakeLock(); }
+  });
+
+  async function checar(){
+    try{
+      var res = await client.from('fila').select('chamado, chamado_em').eq('id', TICKET).maybeSingle();
+      if(res.error || !res.data) return;
+      var ce = res.data.chamado_em;
+      if(first){ last = ce; first = false; return; }   // não alerta ao montar
+      if(res.data.chamado && ce && ce !== last){
+        last = ce;
+        vibrar();
+        if(unlocked){ beep(); }
+      } else if(!res.data.chamado){
+        last = ce;
+      }
+    }catch(e){}
+  }
+  setInterval(checar, 5000);
+  checar();
 })();
 </script>
 """
+
+def render_notificador(ticket: str):
+    html = (
+        _NOTIFIER_HTML
+        .replace("%%URL%%", st.secrets["supabase"]["url"])
+        .replace("%%KEY%%", st.secrets["supabase"]["key"])
+        .replace("%%TICKET%%", ticket)
+    )
+    components.html(html, height=90)
+
 
 # ---------- PREPARAÇÃO DOS TEMAS ----------
 TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for tema in temas]
@@ -451,6 +519,10 @@ else:
         cabecalho_marca()
         st.title("Acompanhamento da Fila")
 
+    # Notificador persistente: montado UMA vez, fora do fragmento, para não ser
+    # recriado a cada atualização (era isso que quebrava o som antes).
+    render_notificador(st.session_state["meu_id"])
+
     def liberar_novo_checkin():
         """Botão que zera o bilhete (memória + URL) e volta ao formulário.
         Só é exibido quando o aluno já saiu da fila (atendimento finalizado)."""
@@ -471,11 +543,10 @@ else:
             st.info("Atualizando sua posição... (reconectando)")
             return
 
-        # Ainda na fila. O botão de novo check-in NÃO aparece — o aluno só pode
-        # reentrar depois que o atendimento dele for finalizado.
+        # O som/vibração é responsabilidade do notificador persistente (acima).
+        # Aqui cuidamos apenas do visual, que se atualiza a cada 8s.
         if posicao is not None:
             if chamado:
-                # O corretor chamou: alerta forte em destaque.
                 st.markdown(
                     """
                     <div class="vez-alert">
@@ -485,29 +556,13 @@ else:
                     """,
                     unsafe_allow_html=True,
                 )
-                # Dispara vibração + bip na 1ª chamada E a cada "Chamar de novo"
-                # (o corretor re-chama → chamado_em muda → re-disparamos o som).
-                if st.session_state.get("ultimo_chamado_em") != chamado_em:
-                    components.html(SOM_CHAMADA, height=0)
-                    st.session_state["ultimo_chamado_em"] = chamado_em
             else:
-                st.session_state["ultimo_chamado_em"] = None
                 st.metric(label="Sua posição atual", value=f"{posicao}º")
                 if posicao == 1:
                     st.success("Fique atento! Você é o próximo a ser chamado.")
                 else:
                     st.info(f"{'Há 1 pessoa' if posicao == 2 else f'Há {posicao - 1} pessoas'} na sua frente.")
                 st.caption("Aguarde ser chamado. Você poderá fazer um novo check-in assim que seu atendimento for finalizado.")
-
-                # Permite o aluno "desbloquear" o som (necessário nos navegadores).
-                # O clique já provoca o rerun; tocamos o teste sem st.rerun() para
-                # o iframe do áudio não ser descartado antes de executar.
-                if not st.session_state.get("som_ativado"):
-                    if st.button("Ativar aviso sonoro"):
-                        st.session_state["som_ativado"] = True
-                        components.html(SOM_CHAMADA, height=0)  # bip de teste no toque
-                else:
-                    st.caption("Aviso sonoro ativado.")
             return
 
         # Fora da fila: descobre o status real para exibir a mensagem correta
