@@ -36,5 +36,9 @@ TEMAS_POR_LIVRO = {
         "Perspectivas de superação da violência policial",
         "Caminhos para o combate ao feminicídio no Brasil",
         "Desafios no enfrentamento à transfobia no Brasil"
+    ],
+    "Simulado": [
+        "Simulado",
+        "Tema Alternativo Simulado"
     ]
 }
