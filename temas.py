@@ -38,7 +38,6 @@ TEMAS_POR_LIVRO = {
         "Desafios no enfrentamento à transfobia no Brasil"
     ],
     "Simulado": [
-        "Simulado",
         "Tema Alternativo Simulado"
     ]
 }
