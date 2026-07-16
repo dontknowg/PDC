@@ -160,6 +160,15 @@ def pular_aluno(id_aluno: str) -> bool:
         return False
 
 
+def excluir_aluno(id_aluno: str) -> bool:
+    try:
+        _executar(supabase.table(TABELA).delete().eq("id", id_aluno))
+        return True
+    except Exception:
+        st.toast("Falha ao excluir aluno. Tente novamente.", icon="⚠️")
+        return False
+
+
 def desfazer_conclusao(id_aluno: str) -> bool:
     payload = {
         "status": "Aguardando",
@@ -313,17 +322,17 @@ with aba_fila:
                 aid = aluno["id"]
                 chamado = bool(aluno.get("chamado", False))
                 with st.container(border=True):
-                    col_info, col_acoes = st.columns([2, 3])
+                    col_info, col_acoes = st.columns([2, 4])
                     with col_info:
                         marcador = "  ·  🔔 Chamado" if chamado else ""
                         st.markdown(f"**{ordem}. {aluno['nome']}**{marcador}")
                         st.caption(f"{aluno['turma']}  |  {aluno['tema']}  |  {aluno['contato']}")
                     with col_acoes:
-                        b_chamar, b_concluir, b_pular = st.columns(3)
+                        # Agora temos 4 colunas de botões
+                        b_chamar, b_concluir, b_pular, b_excluir = st.columns(4)
 
                         rotulo_chamar = "Chamar de novo" if chamado else "Chamar"
                         
-                        # Botão ajustado para passar os parâmetros de contato do aluno
                         if b_chamar.button(rotulo_chamar, key=f"chamar_{aid}", type="primary", use_container_width=True):
                             if chamar_aluno(aid, aluno['nome'], aluno['contato']):
                                 st.rerun()
@@ -335,6 +344,10 @@ with aba_fila:
 
                         if b_pular.button("Pular", key=f"pular_{aid}", use_container_width=True):
                             if pular_aluno(aid):
+                                st.rerun()
+
+                        if b_excluir.button("Excluir", key=f"excluir_{aid}", use_container_width=True):
+                            if excluir_aluno(aid):
                                 st.rerun()
 
         exibir_fila()
