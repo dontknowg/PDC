@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 BASE_ALUNOS = {
     "Adam Gonçalves de Albuquerque Medeiros": {"contato": "82999481161", "turma": "TERÇA-NOITE"},
     "Adrielly Rebeca Souza Inacio": {"contato": "82987159586", "turma": "SEXTA-TARDE"},
@@ -395,5 +396,5 @@ BASE_ALUNOS = {
     "Weldianny Monalisa Cavalcante Moura": {"contato": "82999468233", "turma": "Não identificada"},
     "Yara Galvão Araujo": {"contato": "82981570101", "turma": "SEXTA-TARDE"},
     "Yasmin Maciel Soares Tenório Gomes": {"contato": "82998375970", "turma": "QUARTA-PRO"},
-    "Yuri Ferreira de Oliveira Almeida": {"contato": "82996590239", "turma": "SEXTA-MANHÃ"}
+    "Yuri Ferreira de Oliveira Almeida": {"contato": "82996590239", "turma": "SEXTA-MANHÃ"},
 }
