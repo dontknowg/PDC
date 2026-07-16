@@ -113,7 +113,12 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
             if telefone_limpo and not telefone_limpo.startswith("55"):
                 telefone_limpo = f"55{telefone_limpo}"
                 
-            mensagem = f"Olá, *{nome_aluno}*! Chegou a sua vez nas correções. Dirija-se à mesa."
+            # Extrai apenas o primeiro e o segundo nome do aluno
+            nome_curto = " ".join(str(nome_aluno).strip().split()[:2])
+            if not nome_curto:
+                nome_curto = "Aluno(a)"
+                
+            mensagem = f"Olá, *{nome_curto}*! Chegou a sua vez nas correções. Dirija-se à mesa."
             
             # Estrutura do payload exigida pela documentação Start (@s.whatsapp.net)
             payload = {
