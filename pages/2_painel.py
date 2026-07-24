@@ -4,8 +4,10 @@ from supabase import create_client, Client
 from datetime import datetime, date, timezone
 import requests
 
-# Importando a lista oficial de corretores de forma limpa
+# Importando as listas oficiais de forma limpa
 from corretores import LISTA_CORRETORES
+from alunos import BASE_ALUNOS
+from temas import TEMAS_POR_LIVRO
 
 st.set_page_config(page_title="Painel | Projeto de Correções", layout="wide")
 
@@ -54,7 +56,13 @@ TABELA = "fila"
 # ==========================================================
 CORRETORES = LISTA_CORRETORES
 OPCOES_NOTA = [0, 40, 80, 120, 160, 200]
-COLUNAS = ["id", "data_hora", "ordem_em", "nome", "contato", "turma", "tema", "status", "corretor", "comp1", "comp2", "comp3", "comp4", "comp5", "nota"]
+ORIGEM_MANUAL = "Redacall"   # etiqueta dos registros lançados manualmente
+# Lista única de temas (o livro fica oculto e é inferido ao salvar)
+TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for tema in temas]
+COLUNAS = [
+    "id", "data_hora", "ordem_em", "nome", "contato", "turma", "tema",
+    "status", "origem", "corretor", "comp1", "comp2", "comp3", "comp4", "comp5", "nota",
+]
 
 
 @st.cache_resource
@@ -98,28 +106,28 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
                 "chamado_em": datetime.now(timezone.utc).isoformat(),
             }).eq("id", id_aluno)
         )
-        
+
         # 2. Dispara a notificação via WhatsApp (MegaAPI Start)
         try:
             host = st.secrets["whatsapp"]["host"]
             instance_key = st.secrets["whatsapp"]["instance_key"]
             token = st.secrets["whatsapp"]["token"]
-            
+
             # URL de Endpoint ajustada para a estrutura rest da MegaAPI Start
             url_api = f"https://{host}/rest/sendMessage/{instance_key}/text"
-            
+
             # Limpa o número e garante o 55 do Brasil
             telefone_limpo = ''.join(filter(str.isdigit, str(contato_aluno)))
             if telefone_limpo and not telefone_limpo.startswith("55"):
                 telefone_limpo = f"55{telefone_limpo}"
-                
+
             # Extrai apenas o primeiro e o segundo nome do aluno
             nome_curto = " ".join(str(nome_aluno).strip().split()[:2])
             if not nome_curto:
                 nome_curto = "Aluno(a)"
-                
+
             mensagem = f"Olá, *{nome_curto}*! Chegou a sua vez nas correções. Dirija-se à mesa."
-            
+
             # Estrutura do payload exigida pela documentação Start (@s.whatsapp.net)
             payload = {
                 "messageData": {
@@ -131,14 +139,14 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json"
             }
-            
+
             # Executa o disparo com tempo limite de 5 segundos
             resposta = requests.post(url_api, json=payload, headers=headers, timeout=5)
             resposta.raise_for_status()
-            
+
         except Exception as erro_whatsapp:
             print(f"Erro ao enviar WhatsApp: {erro_whatsapp}")
-            
+
         return True
     except Exception:
         st.toast("Falha ao chamar. Tente novamente.", icon="⚠️")
@@ -184,6 +192,17 @@ def desfazer_conclusao(id_aluno: str) -> bool:
         return True
     except Exception:
         st.toast("Falha ao desfazer. Tente novamente.", icon="⚠️")
+        return False
+
+
+def registrar_atendimento_manual(dados: dict) -> bool:
+    """Insere uma correção que não passou pela fila, já concluída e
+    etiquetada com a origem 'Redacall'."""
+    try:
+        _executar(supabase.table(TABELA).insert(dados))
+        return True
+    except Exception:
+        st.error("Não foi possível registrar. Verifique a conexão e tente novamente.")
         return False
 
 
@@ -301,6 +320,11 @@ with aba_fila:
     # MODO NORMAL: FILA DE ESPERA
     # ==========================================
     else:
+        # Confirmação de um registro manual feito no rerun anterior
+        _msg_manual = st.session_state.pop("manual_ok", None)
+        if _msg_manual:
+            st.toast(_msg_manual, icon="✅")
+
         @st.fragment(run_every=10)
         def exibir_fila():
             try:
@@ -332,7 +356,7 @@ with aba_fila:
                         b_chamar, b_concluir, b_pular, b_excluir = st.columns(4)
 
                         rotulo_chamar = "Chamar de novo" if chamado else "Chamar"
-                        
+
                         if b_chamar.button(rotulo_chamar, key=f"chamar_{aid}", type="primary", use_container_width=True):
                             if chamar_aluno(aid, aluno['nome'], aluno['contato']):
                                 st.rerun()
@@ -375,11 +399,103 @@ with aba_fila:
                 with col_info:
                     nota_txt = f"{int(row['nota'])}" if pd.notna(row.get("nota")) else "—"
                     corretor_txt = row["corretor"] if row.get("corretor") else "—"
-                    st.markdown(f"**{row['nome']}** — Nota: {nota_txt} _(Corretor: {corretor_txt})_")
+                    etiqueta = " `Redacall`" if row.get("origem") == ORIGEM_MANUAL else ""
+                    st.markdown(f"**{row['nome']}** — Nota: {nota_txt} _(Corretor: {corretor_txt})_{etiqueta}")
                 with col_acao:
                     if st.button("Desfazer", key=f"desfazer_{row['id']}", use_container_width=True):
                         if desfazer_conclusao(row["id"]):
                             st.rerun()
+
+        # ==========================================
+        # REGISTRO MANUAL (etiqueta "Redacall")
+        # ==========================================
+        st.divider()
+        with st.expander("Registrar atendimento manual (Redacall)", expanded=False):
+            st.caption(
+                "Para lançar uma correção que não passou pela fila. O registro entra "
+                f"na base já como **Concluído** e com a origem **{ORIGEM_MANUAL}**."
+            )
+
+            # Versão dos campos: ao salvar, incrementamos e os widgets nascem limpos.
+            _ver = st.session_state.get("manual_ver", 0)
+
+            col_a, col_b = st.columns(2)
+            with col_a:
+                m_corretor = st.selectbox(
+                    "Corretor responsável", CORRETORES, index=None,
+                    placeholder="Selecione o corretor...", key=f"m_corretor_{_ver}",
+                )
+            with col_b:
+                m_aluno = st.selectbox(
+                    "Aluno", sorted(BASE_ALUNOS.keys()), index=None,
+                    placeholder="Selecione o aluno...", key=f"m_aluno_{_ver}",
+                )
+
+            # Campo único de tema (o livro é descoberto de forma oculta ao salvar)
+            m_tema = st.selectbox(
+                "Tema da redação", TODOS_TEMAS, index=None,
+                placeholder="Selecione o tema...", key=f"m_tema_{_ver}",
+            )
+
+            # Turma e WhatsApp vêm automaticamente da base de alunos
+            if m_aluno:
+                _dados_aluno = BASE_ALUNOS.get(m_aluno, {})
+                st.caption(
+                    f"Turma: {_dados_aluno.get('turma', '—')}  |  "
+                    f"WhatsApp: {_dados_aluno.get('contato', '—')}"
+                )
+
+            st.markdown("**Notas por competência**")
+            m_cols = st.columns(5)
+            m_notas = []
+            for _i in range(5):
+                with m_cols[_i]:
+                    m_notas.append(
+                        st.selectbox(
+                            f"C{_i + 1}", OPCOES_NOTA, index=None,
+                            placeholder="Nota", key=f"m_c{_i + 1}_{_ver}",
+                        )
+                    )
+
+            m_total = sum(n for n in m_notas if n is not None)
+            st.metric("Nota Total", f"{m_total} / 1000")
+
+            if st.button("Registrar atendimento", type="primary",
+                         use_container_width=True, key=f"m_salvar_{_ver}"):
+                if not m_corretor:
+                    st.error("⚠️ Selecione o corretor responsável.")
+                elif not m_aluno:
+                    st.error("⚠️ Selecione o aluno.")
+                elif not m_tema:
+                    st.error("⚠️ Selecione o tema da redação.")
+                elif None in m_notas:
+                    st.error("⚠️ Preencha a nota de todas as 5 competências.")
+                else:
+                    _aluno_info = BASE_ALUNOS.get(m_aluno, {})
+                    # Descobre de qual livro é o tema de forma oculta
+                    _livro = next(
+                        (livro for livro, temas in TEMAS_POR_LIVRO.items() if m_tema in temas),
+                        "Outro",
+                    )
+                    _payload_manual = {
+                        "nome": m_aluno,
+                        "contato": _aluno_info.get("contato", ""),
+                        "turma": _aluno_info.get("turma", "Não identificada"),
+                        # Mesmo formato do check-in, para a base ficar consistente
+                        "tema": f"{_livro} - {m_tema}",
+                        "status": "Concluído",
+                        "origem": ORIGEM_MANUAL,
+                        "corretor": m_corretor,
+                        "comp1": m_notas[0], "comp2": m_notas[1], "comp3": m_notas[2],
+                        "comp4": m_notas[3], "comp5": m_notas[4],
+                        "nota": m_total,
+                    }
+                    # O rerun fica FORA do try para não ser engolido pelo except
+                    _ok = registrar_atendimento_manual(_payload_manual)
+                    if _ok:
+                        st.session_state["manual_ver"] = _ver + 1
+                        st.session_state["manual_ok"] = f"{m_aluno} registrado — nota {m_total}."
+                        st.rerun()
 
 
 with aba_dados:
@@ -433,6 +549,7 @@ with aba_dados:
                 "turma": "Turma",
                 "tema": "Tema",
                 "status": "Status",
+                "origem": "Origem",
                 "corretor": "Corretor",
                 "comp1": "C1",
                 "comp2": "C2",
