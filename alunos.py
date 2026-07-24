@@ -85,6 +85,7 @@ BASE_ALUNOS = {
     "Cyber / Dáfine Miranda dos Santos": {"contato": "82991977373", "turma": "TERÇA-NOITE"},
     "Daisy Luane Vilela Duarte": {"contato": "82999521325", "turma": "SEMI PRO"},
     "Dante Nunes de Almeida": {"contato": "82996316704", "turma": "ARAPIRACA"},
+    "Davi Barbosa (teste)": {"contato": "82999224032", "turma": "teste"},
     "Davi Henrique Soares Ferreira": {"contato": "82996778668", "turma": "QUARTA-ONLINE"},
     "Davi Lages Maia": {"contato": "82987160153", "turma": "SEMI PRO"},
     "Dhara Maria": {"contato": "82999905111", "turma": "SEXTA-TARDE"},
