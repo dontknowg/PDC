@@ -99,7 +99,47 @@ def carregar_dados(filtro_status=None) -> pd.DataFrame:
 
 def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
     try:
-        # 1. Atualiza no Supabase (faz o painel reagir)
+        # 1. Pega as credenciais
+        host = st.secrets["whatsapp"]["host"]
+        instance_key = st.secrets["whatsapp"]["instance_key"]
+        token = st.secrets["whatsapp"]["token"]
+
+        # URL de Endpoint ajustada para a estrutura rest da MegaAPI Start
+        url_api = f"https://{host}/rest/sendMessage/{instance_key}/text"
+
+        # Limpa o número e garante o 55 do Brasil
+        telefone_limpo = ''.join(filter(str.isdigit, str(contato_aluno)))
+        if telefone_limpo and not telefone_limpo.startswith("55"):
+            telefone_limpo = f"55{telefone_limpo}"
+
+        # Extrai apenas o primeiro e o segundo nome do aluno
+        nome_curto = " ".join(str(nome_aluno).strip().split()[:2])
+        if not nome_curto:
+            nome_curto = "Aluno(a)"
+
+        mensagem = f"Olá, *{nome_curto}*! Chegou a sua vez nas correções. Dirija-se à mesa."
+
+        # Estrutura do payload
+        payload = {
+            "messageData": {
+                "to": f"{telefone_limpo}@s.whatsapp.net",
+                "text": mensagem
+            }
+        }
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+        # 2. Tenta enviar o WhatsApp PRIMEIRO
+        resposta = requests.post(url_api, json=payload, headers=headers, timeout=8)
+        
+        # Se a API retornar erro (400, 401, 404, 500)
+        if not resposta.ok:
+            st.error(f"Erro na MegaAPI ({resposta.status_code}): {resposta.text}")
+            return False # Para aqui, não atualiza o Supabase
+
+        # 3. Se enviou com sucesso, atualiza o Supabase
         _executar(
             supabase.table(TABELA).update({
                 "chamado": True,
@@ -107,49 +147,20 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
             }).eq("id", id_aluno)
         )
 
-        # 2. Dispara a notificação via WhatsApp (MegaAPI Start)
-        try:
-            host = st.secrets["whatsapp"]["host"]
-            instance_key = st.secrets["whatsapp"]["instance_key"]
-            token = st.secrets["whatsapp"]["token"]
-
-            # URL de Endpoint ajustada para a estrutura rest da MegaAPI Start
-            url_api = f"https://{host}/rest/sendMessage/{instance_key}/text"
-
-            # Limpa o número e garante o 55 do Brasil
-            telefone_limpo = ''.join(filter(str.isdigit, str(contato_aluno)))
-            if telefone_limpo and not telefone_limpo.startswith("55"):
-                telefone_limpo = f"55{telefone_limpo}"
-
-            # Extrai apenas o primeiro e o segundo nome do aluno
-            nome_curto = " ".join(str(nome_aluno).strip().split()[:2])
-            if not nome_curto:
-                nome_curto = "Aluno(a)"
-
-            mensagem = f"Olá, *{nome_curto}*! Chegou a sua vez nas correções. Dirija-se à mesa."
-
-            # Estrutura do payload exigida pela documentação Start (@s.whatsapp.net)
-            payload = {
-                "messageData": {
-                    "to": f"{telefone_limpo}@s.whatsapp.net",
-                    "text": mensagem
-                }
-            }
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
-            }
-
-            # Executa o disparo com tempo limite de 5 segundos
-            resposta = requests.post(url_api, json=payload, headers=headers, timeout=5)
-            resposta.raise_for_status()
-
-        except Exception as erro_whatsapp:
-            print(f"Erro ao enviar WhatsApp: {erro_whatsapp}")
-
+        st.toast("Mensagem enviada com sucesso!", icon="✅")
         return True
-    except Exception:
-        st.toast("Falha ao chamar. Tente novamente.", icon="⚠️")
+
+    except KeyError as erro_chave:
+        st.error(f"Erro de configuração: Faltando a chave {erro_chave} no st.secrets")
+        return False
+    except requests.exceptions.Timeout:
+        st.error("A MegaAPI demorou muito para responder (Timeout).")
+        return False
+    except requests.exceptions.RequestException as erro_req:
+        st.error(f"Falha de conexão com a MegaAPI: {erro_req}")
+        return False
+    except Exception as e:
+        st.error(f"Erro interno: {e}")
         return False
 
 
