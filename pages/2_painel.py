@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timezone, timedelta
 import requests
+
+FUSO_BR = timezone(timedelta(hours=-3))
 
 # Importando as listas oficiais de forma limpa
 from corretores import LISTA_CORRETORES
@@ -55,7 +57,7 @@ TABELA = "fila"
 # VARIÁVEIS DE CORREÇÃO
 # ==========================================================
 CORRETORES = LISTA_CORRETORES
-OPCOES_NOTA = [0, 40, 80, 120, 160, 200]
+OPCOES_NOTA = [0, 40, 80, 120, 160, 180, 200]
 ORIGEM_MANUAL = "Redacall"   # etiqueta dos registros lançados manualmente
 # Lista única de temas (o livro fica oculto e é inferido ao salvar)
 TODOS_TEMAS = [tema for temas in TEMAS_POR_LIVRO.values() for tema in temas]
@@ -93,7 +95,12 @@ def carregar_dados(filtro_status=None) -> pd.DataFrame:
 
     response = _executar(query)
     if response.data:
-        return pd.DataFrame(response.data)
+        df = pd.DataFrame(response.data)
+        # Converte as colunas de data do banco (UTC) para o fuso do Brasil
+        for col in ["data_hora", "ordem_em", "chamado_em"]:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], utc=True).dt.tz_convert(FUSO_BR).dt.strftime('%Y-%m-%dT%H:%M:%S')
+        return df
     return pd.DataFrame(columns=COLUNAS)
 
 
@@ -244,7 +251,8 @@ except Exception:
     st.error("Não foi possível conectar ao banco de dados agora. Verifique a conexão e atualize a página.")
     st.stop()
 
-hoje = date.today().isoformat()
+# Ajuste do 'hoje' usando o fuso do Brasil
+hoje = datetime.now(FUSO_BR).date().isoformat()
 dados_hoje = todos_dados[todos_dados["data_hora"].str.startswith(hoje)] if not todos_dados.empty else pd.DataFrame()
 
 col_m1, col_m2, col_m3 = st.columns(3)
@@ -517,7 +525,7 @@ with aba_dados:
             modo_data = st.radio("Filtrar por", ["Dia único", "Intervalo"], horizontal=True, label_visibility="collapsed")
         with col_data:
             if modo_data == "Dia único":
-                dia_selecionado = st.date_input("Data", value=date.today())
+                dia_selecionado = st.date_input("Data", value=datetime.now(FUSO_BR).date())
                 data_inicio = dia_selecionado
                 data_fim = dia_selecionado
             else:
@@ -570,6 +578,6 @@ with aba_dados:
         st.download_button(
             "Exportar CSV",
             data=csv,
-            file_name=f"correcoes_{date.today().isoformat()}.csv",
+            file_name=f"correcoes_{datetime.now(FUSO_BR).date().isoformat()}.csv",
             mime="text/csv",
         )
