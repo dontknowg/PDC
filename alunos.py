@@ -307,7 +307,7 @@ BASE_ALUNOS = {
     "Maria Luíza Brito Lima": {"contato": "77981574101", "turma": "SEMI BASE"},
     "Maria Luiza Medeiros Ferreira Neves": {"contato": "82999648319", "turma": "QUARTA-PRO"},
     "Maria Luiza Patrício Porto": {"contato": "61996098903", "turma": "QUARTA-ONLINE"},
-    "Maria Luiza Pereira Cavalcante Silva": {"contato": "82996015913", "turma": "QUARTA-PRO"},
+    "Maria Luiza Pereira Cavalcante Silva": {"contato": "82996015913", "turma": "ARAPIRACA"},
     "Maria Luiza Pereira Lima": {"contato": "82996397217", "turma": "QUARTA-PRO"},
     "Maria Torres Vasconcelos Araújo dos Santos": {"contato": "82988893103", "turma": "Não identificada"},
     "Maria Vitória Carneiro Costa": {"contato": "82998042250", "turma": "QUARTA-PRO"},
