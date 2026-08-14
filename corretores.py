@@ -7,7 +7,6 @@ LISTA_CORRETORES = [
     "Fernanda Oliveira",
     "Iany Nunes",
     "Joana Fontan",
-    "Larah Karolyne",
     "Letícia Toledo",
     "Marcela Lopes"
 ]
