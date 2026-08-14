@@ -37,7 +37,13 @@ TEMAS_POR_LIVRO = {
         "Caminhos para o combate ao feminicídio no Brasil",
         "Desafios no enfrentamento à transfobia no Brasil"
     ],
-    "Simulado": [
+      "Livro 7": [
+        "Formas de inclusão da população imigrante no Brasil",
+        "Inclusão de pessoas com deficiência no mercado de trabalho brasileiro",
+        "Reinclusão socioeconômica de evadidos escolares na sociedade brasileira",
+        "Enfrentamento ao abuso sexual infantil no Brasil",
+    ],
+     "Simulado": [
         "Tema Alternativo Simulado"
-    ]
+     ]
 }
