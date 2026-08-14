@@ -45,5 +45,11 @@ TEMAS_POR_LIVRO = {
     ],
      "Simulado": [
         "Tema Alternativo Simulado"
-     ]
+     ],
+
+    "Nivelamento": [ 
+        "Saúde mental diante do uso excessivo de tecnologias no Brasil",
+        "Uso de cigarros eletrônicos enquanto questão de saúde pública no Brasil"
+    ]
+
 }
