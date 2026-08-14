@@ -409,7 +409,7 @@ BASE_ALUNOS = {
     "Valentina Costa Brandão Vilela": {"contato": "82981122008", "turma": "SEXTA-TARDE"},
     "Veronica Lamenha Lira": {"contato": "82999277650", "turma": "SEMI BASE"},
     "Vitor Albuquerque": {"contato": "82999371273", "turma": "QUARTA-PRO"},
-    "Vitor Brasil Barreto Barros": {"contato": "82991317304", "turma": "SEXTA-MANHÃ"}
+    "Vitor Brasil Barreto Barros": {"contato": "82991317304", "turma": "SEXTA-MANHÃ"},
     "Victor Montenegro Barbosa": {"contato": "82988124239", "turma": "TERÇA-TARDE"},
     "Vinícius Barbosa de Macedo Dias": {"contato": "82988785697", "turma": "TERÇA-NOITE"},
     "Vinicius Barboza Cavalcante": {"contato": "82998251182", "turma": "QUINTA PRO (ARAPIRACA) - 14h30 às 17h30 - presencial_light"},
