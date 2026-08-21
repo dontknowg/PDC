@@ -419,7 +419,7 @@ BASE_ALUNOS = {
     "Vitória de Almeida Gameleira": {"contato": "82991279111", "turma": "SEMI PRO"},
     "Walter José Ursulino de Oliveira Neto": {"contato": "82996489916", "turma": "SEXTA-MANHÃ"},
     "Weldianny Monalisa Cavalcante Moura": {"contato": "82999468233", "turma": "Não identificada"},
-    "Yara Galvão Araujo": {"contato": "5582981570101", "turma": "SEXTA-TARDE"},
+    "Yara Galvão Araujo": {"contato": "82981570101", "turma": "SEXTA-TARDE"},
     "Yasmin Maciel Soares Tenório Gomes": {"contato": "82998375970", "turma": "QUARTA-PRO"},
     "Yuri Ferreira de Oliveira Almeida": {"contato": "82996590239", "turma": "SEXTA-MANHÃ"},
 }
