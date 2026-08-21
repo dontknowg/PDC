@@ -333,6 +333,7 @@ BASE_ALUNOS = {
     "Mateus de Lucena Lima": {"contato": "82996520668", "turma": "TERÇA-NOITE"},
     "Matheus Freire Rodrigues": {"contato": "82996485387", "turma": "QUARTA-ONLINE"},
     "Maya de Vicq Normande Chada Oliveira da Costa Pinto": {"contato": "82991014955", "turma": "SEXTA-TARDE"},
+    "Mayara Umbelino Barbosa": {"contato": "82987192652", "turma": "SEMI PRO"},
     "Maylla Lira Madeiro": {"contato": "82987434242", "turma": "SEXTA-TARDE"},
     "Maysa Lorrany Moraes Moura": {"contato": "82988523673", "turma": "SEXTA-MANHÃ"},
     "Miguel Andrade Balbi": {"contato": "82999901702", "turma": "TERÇA-TARDE"},
