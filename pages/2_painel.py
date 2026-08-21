@@ -105,74 +105,83 @@ def carregar_dados(filtro_status=None) -> pd.DataFrame:
 
 
 def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
-    # 1. Atualiza no Supabase (faz o painel reagir). Se isso falhar, aborta.
-    try:
-        _executar(
-            supabase.table(TABELA).update({
-                "chamado": True,
-                "chamado_em": datetime.now(timezone.utc).isoformat(),
-            }).eq("id", id_aluno)
-        )
-    except Exception:
-        st.toast("Falha ao chamar (banco). Tente novamente.", icon="⚠️")
-        return False
-
-    # 2. Dispara o WhatsApp — com a correção do 9º dígito
     try:
         cfg = st.secrets["whatsapp"]
         host = cfg["host"]
         instance_key = cfg["instance_key"]
         token = cfg["token"]
     except Exception:
-        st.toast("Aluno chamado, mas o WhatsApp não está configurado (falta o bloco [whatsapp] nos secrets).", icon="⚠️")
-        return True
+        st.error("WhatsApp não está configurado nos secrets.")
+        return False
 
     try:
-        # --- INÍCIO DA CORREÇÃO DO NONO DÍGITO ---
+        # --- REGRA DO NONO DÍGITO ---
         telefone = "".join(filter(str.isdigit, str(contato_aluno)))
-        
-        # Se já vier com 55, remove provisoriamente para aplicar a regra
         if telefone.startswith("55") and len(telefone) > 11:
             telefone = telefone[2:]
             
-        # Regra do WhatsApp Brasil: DDDs > 30 perdem o 9 no sistema interno
         if len(telefone) == 11:
             ddd = int(telefone[:2])
             if ddd > 30:
-                telefone = telefone[:2] + telefone[3:] # Remove o terceiro caractere (o '9')
+                telefone = telefone[:2] + telefone[3:] 
                 
-        # Adiciona o 55 de volta, agora com o número certinho pro WhatsApp
         telefone_limpo = f"55{telefone}"
-        # --- FIM DA CORREÇÃO ---
 
         if not telefone_limpo or telefone_limpo == "55":
-            st.toast("Aluno chamado, mas ele não tem WhatsApp cadastrado.", icon="⚠️")
-            return True
+            st.warning("Este aluno não tem um número válido cadastrado.")
+            return False
 
         nome_curto = " ".join(str(nome_aluno).strip().split()[:2]) or "Aluno(a)"
         mensagem = f"Olá, *{nome_curto}*! Chegou a sua vez nas correções. Dirija-se à mesa."
 
         url_api = f"https://{host}/rest/sendMessage/{instance_key}/text"
-        payload = {"messageData": {"to": f"{telefone_limpo}@s.whatsapp.net", "text": mensagem}}
+        
+        # Blindagem dupla do Payload para evitar conflitos de versão da MegaAPI
+        payload = {
+            "to": f"{telefone_limpo}@s.whatsapp.net", 
+            "text": mensagem,
+            "messageData": {
+                "to": f"{telefone_limpo}@s.whatsapp.net", 
+                "text": mensagem
+            }
+        }
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
+        # 1. TENTA ENVIAR O WHATSAPP PRIMEIRO
         resp = requests.post(url_api, json=payload, headers=headers, timeout=10)
 
-        if resp.status_code >= 400:
-            corpo = (resp.text or "")[:400]
-            st.toast(f"WhatsApp falhou [{resp.status_code}]: {corpo}", icon="⚠️")
-            print(f"[WhatsApp] {resp.status_code} -> {resp.text}")
-        else:
-            st.toast(f"Chamado enviado no WhatsApp para {nome_curto}.", icon="✅")
-            print(f"[WhatsApp] OK -> {resp.text[:300]}")
+        # 2. DESMASCARA A MENSAGEM DA MEGAAPI
+        try:
+            json_resp = resp.json()
+            is_error = json_resp.get("error", False)
+            api_msg = json_resp.get("message", "Erro desconhecido")
+        except Exception:
+            is_error = False
+            api_msg = resp.text
+
+        # Se a API retornou código 400+ ou se colocou "error: true" no JSON
+        if resp.status_code >= 400 or is_error:
+            st.error(f"Erro na MegaAPI: {api_msg}")
+            print(f"[ERRO WHATSAPP] {resp.text}")
+            return False  # ABORTA! Não marca o aluno como chamado no painel!
+
+        # 3. SÓ ATUALIZA O BANCO DE DADOS SE O WHATSAPP REALMENTE ENVIOU
+        _executar(
+            supabase.table(TABELA).update({
+                "chamado": True,
+                "chamado_em": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", id_aluno)
+        )
+        st.toast(f"Chamado entregue para {nome_curto}.", icon="✅")
+        print(f"[SUCESSO WHATSAPP] {resp.text[:200]}")
+        return True
 
     except requests.exceptions.Timeout:
-        st.toast("WhatsApp: tempo esgotado (a API não respondeu em 10s).", icon="⚠️")
+        st.error("A MegaAPI demorou muito para responder. Verifique sua conexão.")
+        return False
     except Exception as e:
-        st.toast(f"WhatsApp: erro de conexão — {type(e).__name__}: {e}", icon="⚠️")
-        print(f"[WhatsApp] Exceção: {e}")
-
-    return True
+        st.error(f"Erro no sistema de disparo: {e}")
+        return False
 
 def pular_aluno(id_aluno: str) -> bool:
     try:
