@@ -117,7 +117,7 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
         st.toast("Falha ao chamar (banco). Tente novamente.", icon="⚠️")
         return False
 
-    # 2. Dispara o WhatsApp — agora com diagnóstico VISÍVEL.
+    # 2. Dispara o WhatsApp — com a correção do 9º dígito
     try:
         cfg = st.secrets["whatsapp"]
         host = cfg["host"]
@@ -128,10 +128,24 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
         return True
 
     try:
-        telefone_limpo = "".join(filter(str.isdigit, str(contato_aluno)))
-        if telefone_limpo and not telefone_limpo.startswith("55"):
-            telefone_limpo = f"55{telefone_limpo}"
-        if not telefone_limpo:
+        # --- INÍCIO DA CORREÇÃO DO NONO DÍGITO ---
+        telefone = "".join(filter(str.isdigit, str(contato_aluno)))
+        
+        # Se já vier com 55, remove provisoriamente para aplicar a regra
+        if telefone.startswith("55") and len(telefone) > 11:
+            telefone = telefone[2:]
+            
+        # Regra do WhatsApp Brasil: DDDs > 30 perdem o 9 no sistema interno
+        if len(telefone) == 11:
+            ddd = int(telefone[:2])
+            if ddd > 30:
+                telefone = telefone[:2] + telefone[3:] # Remove o terceiro caractere (o '9')
+                
+        # Adiciona o 55 de volta, agora com o número certinho pro WhatsApp
+        telefone_limpo = f"55{telefone}"
+        # --- FIM DA CORREÇÃO ---
+
+        if not telefone_limpo or telefone_limpo == "55":
             st.toast("Aluno chamado, mas ele não tem WhatsApp cadastrado.", icon="⚠️")
             return True
 
@@ -159,7 +173,6 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
         print(f"[WhatsApp] Exceção: {e}")
 
     return True
-
 
 def pular_aluno(id_aluno: str) -> bool:
     try:
