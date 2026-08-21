@@ -115,16 +115,11 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
         return False
 
     try:
-        # --- REGRA DO NONO DÍGITO ---
+        # Pega apenas os números digitados (sem cortar o 9)
         telefone = "".join(filter(str.isdigit, str(contato_aluno)))
         if telefone.startswith("55") and len(telefone) > 11:
             telefone = telefone[2:]
             
-        if len(telefone) == 11:
-            ddd = int(telefone[:2])
-            if ddd > 30:
-                telefone = telefone[:2] + telefone[3:] 
-                
         telefone_limpo = f"55{telefone}"
 
         if not telefone_limpo or telefone_limpo == "55":
@@ -136,51 +131,39 @@ def chamar_aluno(id_aluno: str, nome_aluno: str, contato_aluno: str) -> bool:
 
         url_api = f"https://{host}/rest/sendMessage/{instance_key}/text"
         
-        # Blindagem dupla do Payload para evitar conflitos de versão da MegaAPI
+        # O payload exato da documentação
         payload = {
-            "to": f"{telefone_limpo}@s.whatsapp.net", 
-            "text": mensagem,
             "messageData": {
-                "to": f"{telefone_limpo}@s.whatsapp.net", 
+                "to": f"{telefone_limpo}@s.whatsapp.net",
                 "text": mensagem
             }
         }
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-        # 1. TENTA ENVIAR O WHATSAPP PRIMEIRO
+        # Envia a requisição
         resp = requests.post(url_api, json=payload, headers=headers, timeout=10)
+        
+        # --- RAIO-X NA TELA ---
+        # Isso vai mostrar a mensagem exata que o servidor deles nos devolver
+        st.info(f"Log da API (Status {resp.status_code}): {resp.text}")
 
-        # 2. DESMASCARA A MENSAGEM DA MEGAAPI
-        try:
-            json_resp = resp.json()
-            is_error = json_resp.get("error", False)
-            api_msg = json_resp.get("message", "Erro desconhecido")
-        except Exception:
-            is_error = False
-            api_msg = resp.text
+        # Se houver erro claro no status ou no texto
+        if resp.status_code >= 400 or '"error":true' in resp.text.replace(" ", "").lower():
+            st.error("A MegaAPI recusou o envio (veja o log azul acima).")
+            return False
 
-        # Se a API retornou código 400+ ou se colocou "error: true" no JSON
-        if resp.status_code >= 400 or is_error:
-            st.error(f"Erro na MegaAPI: {api_msg}")
-            print(f"[ERRO WHATSAPP] {resp.text}")
-            return False  # ABORTA! Não marca o aluno como chamado no painel!
-
-        # 3. SÓ ATUALIZA O BANCO DE DADOS SE O WHATSAPP REALMENTE ENVIOU
+        # Atualiza o banco de dados
         _executar(
             supabase.table(TABELA).update({
                 "chamado": True,
                 "chamado_em": datetime.now(timezone.utc).isoformat(),
             }).eq("id", id_aluno)
         )
-        st.toast(f"Chamado entregue para {nome_curto}.", icon="✅")
-        print(f"[SUCESSO WHATSAPP] {resp.text[:200]}")
+        st.success(f"Chamado entregue para {nome_curto}!")
         return True
 
-    except requests.exceptions.Timeout:
-        st.error("A MegaAPI demorou muito para responder. Verifique sua conexão.")
-        return False
     except Exception as e:
-        st.error(f"Erro no sistema de disparo: {e}")
+        st.error(f"Erro no código: {e}")
         return False
 
 def pular_aluno(id_aluno: str) -> bool:
