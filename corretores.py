@@ -8,5 +8,6 @@ LISTA_CORRETORES = [
     "Iany Nunes",
     "Joana Fontan",
     "Letícia Toledo",
-    "Marcela Lopes"
+    "Marcela Lopes",
+    "Vinícius Araújo"
 ]
