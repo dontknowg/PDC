@@ -181,6 +181,7 @@ BASE_ALUNOS = {
     "José Bezerra Cezar Filho": {"contato": "82999300378", "turma": "SEMI PRO"},
     "José Guilherme de Freitas Melo Neto": {"contato": "82999922929", "turma": "SEXTA-MANHÃ"},
     "José Vitor da Silva Souza": {"contato": "82991249899", "turma": "QUARTA-PRO"},
+    "Julia Beatriz Bento da Silva": {"contato": "8298194-1701", "turma": "SEMI PRO"},
     "Julia Bezerra Feijó Pereira": {"contato": "82999344647", "turma": "SEXTA-TARDE"},
     "Júlia Caldas Lira": {"contato": "82996478971", "turma": "SEMI BASE"},
     "Júlia de Abreu Brêda": {"contato": "82988777878", "turma": "SEXTA-TARDE"},
