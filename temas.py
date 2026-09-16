@@ -43,6 +43,12 @@ TEMAS_POR_LIVRO = {
         "Reinclusão socioeconômica de evadidos escolares na sociedade brasileira",
         "Enfrentamento ao abuso sexual infantil no Brasil",
     ],
+    "Livro 8": [
+        "Formas de enfrentamento à arquitetura hostil e à aporofobia",
+        "Perspectivas de combate ao trabalho análogo à escravidão em território brasileiro",
+        "A importância do senso crítico em meio à infodemia midiática",
+        "Medidas para o combate à inadimplência entre famílias brasileiras",
+    ],
      "Simulado": [
         "Tema Alternativo Simulado"
      ],
