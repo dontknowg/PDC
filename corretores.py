@@ -9,5 +9,6 @@ LISTA_CORRETORES = [
     "Joana Fontan",
     "Letícia Toledo",
     "Marcela Lopes",
-    "Vinícius Araújo"
+    "Vinícius Araújo",
+    "Nathalia Guimarães"
 ]
