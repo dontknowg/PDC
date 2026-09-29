@@ -423,7 +423,7 @@ BASE_ALUNOS = {
     "Yara Galvão Araujo": {"contato": "82981570101", "turma": "SEXTA-TARDE"},
     "Yasmin Maciel Soares Tenório Gomes": {"contato": "82998375970", "turma": "QUARTA-PRO"},
     "Yuri Ferreira de Oliveira Almeida": {"contato": "82996590239", "turma": "SEXTA-MANHÃ"},
-    "Alex Sandro Da Silva Filho": {"contato": "82998441352", "turma": "REVISÃO ARAPIRACA"],
+    "Alex Sandro Da Silva Filho": {"contato": "82998441352", "turma": "REVISÃO ARAPIRACA"},
     "Ana Clara Nunes França da Cruz Correia": {"contato": "82981801508", "turma": "REVISÃO ARAPIRACA"},
     "Caio Matheus Malaquias Araujo": {"contato": "82993358991", "turma": "REVISÃO ARAPIRACA"},
     "Cecília": {"contato": "82996405424", "turma": "REVISÃO ARAPIRACA"},
@@ -437,7 +437,7 @@ BASE_ALUNOS = {
     "Ana Alice Correa Barbosa Tavares": {"contato": "82996622838", "turma": "REVISÃO MACEIÓ"},
     "Ana Beatriz Tenório Cansanção": {"contato": "82994106311", "turma": "REVISÃO MACEIÓ"},  	    
 	"Ana Katharine Freire Silva Oliveira": {"contato": "74981395682", "turma": "REVISÃO MACEIÓ"},
-    "Carlos Vinícius Medeiros Rodrigues" {"contato": "82996062804", "turma": "REVISÃO MACEIÓ"},
+    "Carlos Vinícius Medeiros Rodrigues": {"contato": "82996062804", "turma": "REVISÃO MACEIÓ"},
     "Eduardo Rafael Vieira Tavares": {"contato": "82987539605", "turma": "REVISÃO MACEIÓ"},
     "Fernanda Letícia Nunes Damasceno": {"contato": "82982265025", "turma": "REVISÃO MACEIÓ"},
 	"Gabriely vitória": {"contato": "82991124989", "turma": "REVISÃO MACEIÓ"},	    
@@ -458,11 +458,13 @@ BASE_ALUNOS = {
 	"Marina Guimarães Magalhães": {"contato": "82993337953", "turma": "REVISÃO MACEIÓ"},    
 	"Marina Luna tenorio": {"contato": "82999336380", "turma": "REVISÃO MACEIÓ"},   
 	"Nina Moreira Lins": 	{"contato": "82996450283", "turma": "REVISÃO MACEIÓ"},
-	"Pedro Paulo Vanderlei Ramos":	{"contato": "82982044363"  	  , "turma": "REVISÃO MACEIÓ"},  
-	"Sofia de Carvalho Rodrigues":	{"contato": "82981267412"  , "turma": "REVISÃO MACEIÓ"},	    
-	"Stefania Crestana Nogueira Lima":	{"contato": "79999955615"  , "turma": "REVISÃO MACEIÓ"},	    
-	"Teresa Raquel Teles Cavalcante":	{"contato": "82988329338"  , "turma": "REVISÃO MACEIÓ"},	    
-	"Vitória Maria Duarte Lucena Malta":	{"contato": "82996780102"  , "turma": "REVISÃO MACEIÓ"},	    
+	"Pedro Paulo Vanderlei Ramos":	{"contato": "82982044363", "turma": "REVISÃO MACEIÓ"},  
+	"Sofia de Carvalho Rodrigues":	{"contato": "82981267412", "turma": "REVISÃO MACEIÓ"},	    
+	"Stefania Crestana Nogueira Lima":	{"contato": "79999955615", "turma": "REVISÃO MACEIÓ"},	    
+	"Teresa Raquel Teles Cavalcante":	{"contato": "82988329338", "turma": "REVISÃO MACEIÓ"},	    
+	"Vitória Maria Duarte Lucena Malta":	{"contato": "82996780102", "turma": "REVISÃO MACEIÓ"},	    
 	"Yasmim Franciny Moura Santo":	{"contato": "82991201207", "turma": "REVISÃO MACEIÓ"}
+
+}
 
     
